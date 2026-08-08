@@ -1,0 +1,12 @@
+{
+  "name": "neuru-proxy",
+  "version": "1.0.0",
+  "description": "Anthropic API proxy for НЭЙРУ dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
