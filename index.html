@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v2026-08-10-1410 -->
+<!DOCTYPE html><!-- v2026-08-13-1430 -->
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -261,6 +261,24 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .pub-platform-tab{padding:7px 14px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--muted);transition:all .18s;font-family:inherit}
 .pub-platform-tab.active{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(37,99,235,.28)}
 .pub-platform-tab:hover:not(.active){border-color:var(--blue);color:var(--blue)}
+.pcpy-tab{padding:6px 13px;border-radius:9px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--muted);transition:all .18s;font-family:inherit}
+.pcpy-tab.active{background:var(--grad);color:#fff;border-color:transparent}
+.pcpy-tab:hover:not(.active){border-color:var(--blue);color:var(--blue)}
+.pub-cal-day{border-radius:8px;padding:6px 4px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--card);color:var(--muted);transition:all .18s;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative}
+.pub-cal-day.has-data{background:var(--soft);border-color:var(--blue);color:var(--blue)}
+.pub-cal-day.has-data:hover{background:var(--grad);color:#fff;border-color:transparent}
+.pub-cal-day.selected{background:var(--grad);color:#fff;border-color:transparent}
+.pub-cal-day.empty{cursor:default;opacity:.3;pointer-events:none}
+.pub-cal-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.7}
+.pcpy-pub-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin-bottom:14px}
+.pcpy-pub-card[data-hidden="1"]{display:none}
+.pcpy-platform-badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 9px;border-radius:20px;margin-bottom:10px;background:var(--soft);color:var(--blue)}
+.pcpy-pub-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.4}
+.pcpy-pub-meta{font-size:11px;color:var(--muted);margin-bottom:10px}
+.pcpy-pub-body{font-size:13px;line-height:1.75;color:var(--text)}
+.pcpy-pub-body p{margin:0 0 10px 0}
+.pcpy-copy-btn{margin-top:12px;background:none;border:1px solid var(--border);border-radius:7px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--muted);transition:all .15s}
+.pcpy-copy-btn:hover{border-color:var(--blue);color:var(--blue)}
 .msg-ai{background:var(--soft);border:1px solid var(--border);border-radius:12px 12px 12px 2px;padding:12px 16px;font-size:13px;line-height:1.65;color:var(--text);max-width:85%;align-self:flex-start}
 .msg-user{background:var(--grad);color:#fff;border-radius:12px 12px 2px 12px;padding:12px 16px;font-size:13px;line-height:1.65;max-width:85%;align-self:flex-end}
 .msg-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:4px}
@@ -307,6 +325,222 @@ function copyServerCmd(el){
   var c = document.getElementById('copy-confirm');
   if(c){ c.style.display='inline'; setTimeout(function(){ c.style.display='none'; }, 2000); }
 }
+// ══ АНАЛИТИК — СЛАЙДЕР НЕДЕЛЬ ══
+
+var anWeekList = [];      // список найденных week-*.md файлов
+var anWeekIdx = 0;        // текущий индекс в списке
+var anWeekCache = {};     // кеш: filename → md content
+var anAnalysisCache = {}; // кеш: analysis filename → md content
+
+function loadAnWeekList(){
+  if(!getToken()){
+    var dash = document.getElementById('an-dashboard');
+    if(dash) dash.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">🔑 Добавьте GitHub токен для загрузки данных</div>';
+    return;
+  }
+  // Получить список файлов папки analytics/
+  var url = 'https://api.github.com/repos/'+REPO+'/contents/analytics?ref='+BRANCH;
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.setRequestHeader('Authorization','token '+getToken());
+  xhr.setRequestHeader('Accept','application/vnd.github.v3+json');
+  xhr.onreadystatechange = function(){
+    if(xhr.readyState !== 4) return;
+    try{
+      var files = JSON.parse(xhr.responseText);
+      // Фильтруем week-*.md файлы, сортируем по дате
+      anWeekList = files
+        .filter(function(f){ return f.name.match(/^week-[\d\.]+.*\.md$/); })
+        .sort(function(a,b){ return a.name > b.name ? 1 : -1; });
+      if(!anWeekList.length){
+        document.getElementById('an-dashboard').innerHTML =
+          '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">📂 Файлы week-*.md не найдены в analytics/</div>';
+        return;
+      }
+      anWeekIdx = anWeekList.length - 1; // последняя неделя
+      loadAnWeekData();
+    } catch(e){
+      document.getElementById('an-dashboard').innerHTML =
+        '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">⚠ Ошибка загрузки списка файлов</div>';
+    }
+  };
+  xhr.send();
+}
+
+function slideAnWeek(dir){
+  var newIdx = anWeekIdx + dir;
+  if(newIdx < 0 || newIdx >= anWeekList.length) return;
+  anWeekIdx = newIdx;
+  loadAnWeekData();
+}
+
+function loadAnWeekData(){
+  if(!anWeekList.length){ loadAnWeekList(); return; }
+  var file = anWeekList[anWeekIdx];
+  var period = file.name.replace('week-','').replace('.md','');
+
+  // Обновить слайдер
+  var numEl = document.getElementById('an-week-num');
+  var datesEl = document.getElementById('an-week-dates-label');
+  if(numEl) numEl.textContent = (anWeekIdx+1)+'/'+anWeekList.length;
+  if(datesEl) datesEl.textContent = period.replace(/-/g,' — ');
+
+  // Загрузить данные если не в кеше
+  var dash = document.getElementById('an-dashboard');
+  if(anWeekCache[file.name]){
+    buildAnDashboard(anWeekCache[file.name]);
+    loadAnAnalysisInline(period);
+    return;
+  }
+  if(dash) dash.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка '+file.name+'…</div>';
+  ghFetch('analytics/'+file.name).then(function(md){
+    anWeekCache[file.name] = md;
+    buildAnDashboard(md);
+    loadAnAnalysisInline(period);
+  }).catch(function(){
+    if(dash) dash.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">📂 Файл не найден: analytics/'+file.name+'</div>';
+  });
+}
+
+function loadAnAnalysisInline(period){
+  var wrap = document.getElementById('an-analysis-inline');
+  var el = document.getElementById('an-analysis-inline-content');
+  if(!wrap || !el) return;
+  var fn = 'analysis-'+period+'.md';
+  if(anAnalysisCache[fn]){
+    el.innerHTML = renderAnAnalysis(anAnalysisCache[fn]);
+    wrap.style.display = 'block';
+    return;
+  }
+  ghFetch('analytics/'+fn).then(function(md){
+    anAnalysisCache[fn] = md;
+    el.innerHTML = renderAnAnalysis(md);
+    wrap.style.display = 'block';
+  }).catch(function(){
+    wrap.style.display = 'none'; // нет файла — просто скрыть блок
+  });
+}
+
+function loadAnAnalysis(){
+  if(!anWeekList.length){ loadAnWeekList(); return; }
+  var file = anWeekList[anWeekIdx];
+  var period = file.name.replace('week-','').replace('.md','');
+  var fn = 'analysis-'+period+'.md';
+  var el = document.getElementById('an-analysis-content');
+  if(!el) return;
+  if(anAnalysisCache[fn]){
+    el.innerHTML = renderAnAnalysis(anAnalysisCache[fn]);
+    return;
+  }
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка анализа…</div>';
+  ghFetch('analytics/'+fn).then(function(md){
+    anAnalysisCache[fn] = md;
+    el.innerHTML = renderAnAnalysis(md);
+  }).catch(function(){
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">📂 Файл analysis-'+period+'.md не найден.<br><span style="font-size:11px">Запустите /analyze '+period+' в Claude Code для создания анализа.</span></div>';
+  });
+}
+
+function renderAnAnalysis(md){
+  // Показываем только три раздела: Что сработало, Рекомендации, Вопросы
+  var ALLOWED = [
+    /что сработало/i,
+    /рекоменда/i,
+    /вопросы/i
+  ];
+
+  var STYLES = {
+    сработало: { bg:'rgba(16,185,129,.06)', border:'rgba(16,185,129,.25)', color:'#059669', icon:'✅' },
+    рекоменда: { bg:'rgba(37,99,235,.05)', border:'rgba(37,99,235,.2)', color:'var(--blue)', icon:'📋' },
+    вопросы:   { bg:'rgba(245,158,11,.07)', border:'rgba(245,158,11,.3)', color:'#d97706', icon:'❓' }
+  };
+
+  function getStyle(title){
+    if(/что сработало/i.test(title)) return STYLES['сработало'];
+    if(/рекоменда/i.test(title)) return STYLES['рекоменда'];
+    if(/вопросы/i.test(title)) return STYLES['вопросы'];
+    return { bg:'var(--bg)', border:'var(--border)', color:'var(--muted)', icon:'' };
+  }
+
+  var lines = md.split('\n');
+  var html = '';
+  var curSection = null;
+  var curLines = [];
+  var allowed = false;
+
+  function flushSection(){
+    if(!curSection || !allowed) { curLines=[]; return; }
+    var body = curLines.join('\n').trim();
+    if(!body){ curLines=[]; return; }
+    var st = getStyle(curSection);
+    html += '<div style="background:'+st.bg+';border:1px solid '+st.border+';border-radius:12px;padding:16px 20px;margin-bottom:14px;box-sizing:border-box;word-break:break-word">'
+      + '<div style="font-size:11px;font-weight:700;color:'+st.color+';text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">'
+      + (st.icon?st.icon+' ':'')+escHtml(curSection)+'</div>'
+      + '<div style="font-size:13px;line-height:1.8;color:var(--text)">'+renderAnMd(body)+'</div>'
+      + '</div>';
+    curLines = [];
+  }
+
+  lines.forEach(function(l){
+    if(l.match(/^##\s/) && !l.match(/^###/)){
+      flushSection();
+      curSection = l.replace(/^##\s+/,'').trim();
+      allowed = ALLOWED.some(function(re){ return re.test(curSection); });
+    } else if(l.match(/^#\s/)){
+      // заголовок файла — пропускаем
+    } else if(curSection){
+      curLines.push(l);
+    }
+  });
+  flushSection();
+  return '<div style="display:block;width:100%;box-sizing:border-box">'+(html || '<div style="padding:16px;text-align:center;font-size:13px;color:var(--muted)">Файл анализа не содержит разделов «Что сработало», «Рекомендации» или «Вопросы»</div>')+'</div>';
+}
+
+function renderAnMd(text){
+  var lines = text.split('\n');
+  var out = [];
+  var inTable = false;
+  var tableLines = [];
+
+  function flushTable(){
+    if(!tableLines.length) return;
+    var rows = tableLines.filter(function(l){ return !l.match(/^[\|\s\-:]+$/); });
+    if(!rows.length){ tableLines=[]; return; }
+    var headers = rows[0].split('|').map(function(c){ return c.trim(); }).filter(Boolean);
+    var tbl = '<div style="overflow-x:auto;margin:8px 0"><table class="an-journal-table"><thead><tr>'
+      + headers.map(function(h){ return '<th>'+escHtml(h)+'</th>'; }).join('')
+      + '</tr></thead><tbody>'
+      + rows.slice(1).map(function(r){
+          var cells = r.split('|').map(function(c){ return c.trim(); }).filter(Boolean);
+          return '<tr>'+cells.map(function(c){ return '<td>'+inlineFormat(c)+'</td>'; }).join('')+'</tr>';
+        }).join('')
+      + '</tbody></table></div>';
+    out.push(tbl);
+    tableLines=[];
+  }
+
+  lines.forEach(function(l){
+    var t = l.trim();
+    if(l.match(/^\|/)){
+      inTable=true; tableLines.push(l); return;
+    }
+    if(inTable){ flushTable(); inTable=false; }
+    if(!t){ out.push('<div style="height:6px"></div>'); return; }
+    if(t.match(/^###?\s/)){
+      out.push('<p style="font-size:12px;font-weight:700;color:var(--text);margin:10px 0 4px 0">'+escHtml(t.replace(/^###?\s+/,''))+'</p>');
+      return;
+    }
+    if(t.match(/^[-*]\s/)){
+      out.push('<p style="font-size:13px;line-height:1.75;margin:0 0 4px 0;padding-left:16px;text-indent:-8px">• '+inlineFormat(t.replace(/^[-*]\s+/,''))+'</p>');
+      return;
+    }
+    out.push('<p style="font-size:13px;line-height:1.75;margin:0 0 6px 0">'+inlineFormat(t)+'</p>');
+  });
+  if(inTable) flushTable();
+  return out.join('');
+}
+
+
 </script>
 
 <aside class="sb">
@@ -346,14 +580,16 @@ function copyServerCmd(el){
     <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
     ИИ-Интервьюер
   </a>
-  <a class="nav-item" onclick="showSec('pub-strategy',this)" href="#">
-    <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-    ИИ-Стратег
+  <a class="nav-item" onclick="showSec('pub-copyist',this);stratInitCal()" href="#">
+    <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    ИИ-Стратег-Публицист
   </a>
-  <a class="nav-item" onclick="showSec('pub-copy',this)" href="#">
+
+  <a class="nav-item" onclick="showSec('pub-copy',this);copyInitCal()" href="#">
     <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-    ИИ-Копирайтер
+    ИИ-Копирайтер-Публицист
   </a>
+
   <a class="nav-item" onclick="showSec('pub-post',this)" href="#">
     <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
     ИИ-Постинг
@@ -576,7 +812,7 @@ function copyServerCmd(el){
 <!-- ══ ПУБЛИКАЦИИ: НОВОСТНИК ══ -->
 <section class="section" id="sec-pub-news">
   <div class="sec-title">ИИ-<span>Новостник</span></div>
-  <div class="sec-desc">Подборка новостей об ИИ в отелях. Выберите новость и отправьте её в ИИ-Интервьюер или ИИ-Стратег.</div>
+  <div class="sec-desc">Подборка новостей об ИИ в отелях. Выберите новость и отправьте её в ИИ-Интервьюер или ИИ-Стратег-Публицист.</div>
   <div id="pub-news-panel">
     <div class="empty"><div class="empty-icon">📰</div><div>Новостник для отдела публикаций<br>использует те же данные что и раздел ИИ-Новостник.<br><br>Перейдите в <strong>ИИ-Новостник</strong>, выберите дату и новость,<br>затем нажмите «Отправить в публикации».</div></div>
   </div>
@@ -631,43 +867,76 @@ function copyServerCmd(el){
 
 <!-- ══ ПУБЛИКАЦИИ: КОПИРАЙТЕР ══ -->
 <section class="section" id="sec-pub-copy">
-  <div class="sec-title">ИИ-<span>Копирайтер</span></div>
-  <div class="sec-desc">Пишет статьи для каждой платформы по специальным промптам.</div>
+  <div class="sec-title">ИИ-<span>Копирайтер-Публицист</span></div>
+  <div class="sec-desc">Публикации из neuru-publish/social/copy/ по датам и площадкам.</div>
 
-  <!-- Выбор платформы -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
-    <button class="pub-platform-tab active" onclick="selectPlatform(this,'dzen')">📰 Дзен</button>
-    <button class="pub-platform-tab" onclick="selectPlatform(this,'vk')">💙 ВКонтакте</button>
-    <button class="pub-platform-tab" onclick="selectPlatform(this,'tenchat')">🤝 Тенчат</button>
-    <button class="pub-platform-tab" onclick="selectPlatform(this,'vc')">🔷 VC.ru</button>
-    <button class="pub-platform-tab" onclick="selectPlatform(this,'mitt')">🏨 MITT Connect</button>
-    <button class="pub-platform-tab" onclick="selectPlatform(this,'welcome')">🌟 Welcome Times</button>
-  </div>
-
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-hdr">
-      <div class="card-title" id="platform-title">📰 Дзен — промпт для статьи</div>
-      <button onclick="writePubArticle()" style="background:var(--grad);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">✨ Написать статью</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onclick="copyCalNav(-1)" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:15px;color:var(--text)">‹</button>
+      <div id="copy-cal-label" style="font-size:14px;font-weight:700;color:var(--text);min-width:120px;text-align:center">—</div>
+      <button onclick="copyCalNav(1)" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:15px;color:var(--text)">›</button>
     </div>
-    <textarea id="platform-prompt" style="width:100%;min-height:160px;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-size:12px;font-family:'Courier New',monospace;color:var(--text);background:var(--bg);resize:vertical;outline:none;line-height:1.6"></textarea>
-  </div>
-
-  <div class="card" id="pub-article-card" style="display:none">
-    <div class="card-hdr">
-      <div class="card-title">📄 Готовая статья</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="copyPubArticle()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--muted)">Скопировать</button>
-        <button onclick="approvePubArticle()" style="background:var(--grad);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">✓ Одобрить</button>
-      </div>
-    </div>
-    <div id="pub-article-text" style="font-size:13px;line-height:1.8;color:var(--text)"></div>
-    <!-- Промпт для изображения -->
-    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--blue);margin-bottom:8px">🎨 Промпт для изображения</div>
-      <div id="pub-image-prompt" style="font-size:12px;line-height:1.7;color:var(--text);background:var(--bg);border-radius:8px;padding:12px 14px;border:1px solid var(--border)"></div>
-      <button onclick="copyImagePrompt()" style="margin-top:8px;background:none;border:1px solid var(--border);border-radius:7px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--muted)">Скопировать промпт для изображения</button>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="copy-date-input" type="text" placeholder="ДД.ММ.ГГГГ" value=""
+        style="width:100px;padding:5px 9px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--bg);color:var(--text);outline:none"/>
+      <button onclick="copyCalSelectFromInput()" style="background:var(--grad);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Загрузить</button>
+      <button onclick="loadCopyistCal()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--muted)">↻</button>
     </div>
   </div>
+
+  <!-- Календарь копирайтера -->
+  <div id="copy-cal" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:20px"></div>
+
+  <!-- Табы площадок копирайтера -->
+  <div id="copy-tabs" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+    
+    <button class="pcpy-tab" onclick="copySelectCopyTab(this,'dzen')" class="pcpy-tab active">📰 Дзен</button>
+    <button class="pcpy-tab" onclick="copySelectCopyTab(this,'vk')">💙 ВКонтакте</button>
+    <button class="pcpy-tab" onclick="copySelectCopyTab(this,'tenchat')">🤝 ТенЧат</button>
+    <button class="pcpy-tab" onclick="copySelectCopyTab(this,'welcome')">🌟 Welcome Times</button>
+    <button class="pcpy-tab" onclick="copySelectCopyTab(this,'vc')">🔷 VC.ru</button>
+    <button class="pcpy-tab" onclick="copySelectCopyTab(this,'mitt')">🏨 MITT Connect</button>
+  </div>
+
+  <div id="copy-body">
+    <div class="empty"><div class="empty-icon">📝</div><div>Выберите дату в календаре чтобы увидеть публикации.</div></div>
+  </div>
+</section>
+
+<!-- ══ ПУБЛИКАЦИИ: КОПИРАЙТЕР-ПУБЛИЦИСТ ══ -->
+<section class="section" id="sec-pub-copyist">
+  <div class="sec-title">ИИ-<span>Стратег-Публицист</span></div>
+  <div class="sec-desc">Стратегии из neuru-publish/social/strategy/ по датам.</div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onclick="stratCalNav(-1)" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:15px;color:var(--text)">‹</button>
+      <div id="strat-cal-label" style="font-size:14px;font-weight:700;color:var(--text);min-width:120px;text-align:center">—</div>
+      <button onclick="stratCalNav(1)" style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:15px;color:var(--text)">›</button>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="strat-date-input" type="text" placeholder="ДД.ММ.ГГГГ" value=""
+        style="width:100px;padding:5px 9px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:var(--bg);color:var(--text);outline:none"/>
+      <button onclick="stratCalSelectFromInput()" style="background:var(--grad);color:#fff;border:none;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Загрузить</button>
+      <button onclick="loadPubCopyist()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--muted)">↻</button>
+    </div>
+  </div>
+
+  <!-- Календарь стратега -->
+  <div id="strat-cal" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:20px"></div>
+
+  <!-- Табы площадок -->
+  <div id="pcpy-tabs" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+    <button class="pcpy-tab active" onclick="pcpySelectTab(this,'all')">📋 Стратегия</button>
+    <button class="pcpy-tab" onclick="pcpySelectTab(this,'dzen')">📰 Дзен</button>
+    <button class="pcpy-tab" onclick="pcpySelectTab(this,'vk')">💙 ВКонтакте</button>
+    <button class="pcpy-tab" onclick="pcpySelectTab(this,'tenchat')">🤝 ТенЧат</button>
+    <button class="pcpy-tab" onclick="pcpySelectTab(this,'welcome')">🌟 Welcome Times</button>
+    <button class="pcpy-tab" onclick="pcpySelectTab(this,'vc')">🔷 VC.ru</button>
+    <button class="pcpy-tab" onclick="pcpySelectTab(this,'mitt')">🏨 MITT Connect</button>
+  </div>
+
+  <div id="pcpy-body"></div>
 </section>
 
 <!-- ══ ПУБЛИКАЦИИ: ПОСТИНГ ══ -->
@@ -1108,7 +1377,7 @@ function openNews(idx){
   }
   var md=document.createElement('div'); md.className='nc-meta';
   md.innerHTML='<a class="nc-src" href="'+n.source+'" target="_blank"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+n.sourceLabel+'</a>'
-    +'<div style="display:flex;gap:7px"><button onclick="sendToInterview(curNewsItems[window._openNewsIdx])" style="background:var(--soft);border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;color:var(--blue);font-family:inherit">→ Интервьюер</button><button onclick="sendToStrategy(curNewsItems[window._openNewsIdx])" style="background:var(--soft);border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;color:var(--violet);font-family:inherit">→ Стратег</button></div>'
+    +'<div style="display:flex;gap:7px"><button onclick="sendToInterview(curNewsItems[window._openNewsIdx])" style="background:var(--soft);border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;color:var(--blue);font-family:inherit">→ Интервьюер</button><button onclick="sendToStrategy(curNewsItems[window._openNewsIdx])" style="background:var(--soft);border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;color:var(--violet);font-family:inherit">→ ИИ-Стратег</button></div>'
     +'<span class="nc-ts">'+n.time+' · '+curNewsDate+'</span>';
   card.appendChild(md);
   if(row&&row.parentNode){ row.insertAdjacentElement('afterend',card); }
@@ -1492,7 +1761,7 @@ function renderCopyModal(text){
 
     // Секции как ### заголовки или **Заголовок:** строки
     if(lc.match(/^генератор заголовков/)){ flush(); curKey='heads'; return; }
-    if(lc.match(/^темы\s*\(/) || lc === 'темы'){ flush(); curKey='themes'; return; }
+    if(lc.match(/^темы\s*\(/)){ flush(); curKey=null; return; } // дубль — пропускаем
     if(lc === 'текст письма'){ flush(); curKey='body'; return; }
     if(lc.match(/^разбор приёмов/)){ flush(); curKey='breakdown'; return; }
 
@@ -1507,7 +1776,7 @@ function renderCopyModal(text){
   });
   flush();
 
-  var hasStruct = sections.heads||sections.themes||sections.body||sections.preheader||sections.breakdown;
+  var hasStruct = sections.heads||sections.body||sections.preheader||sections.breakdown;
   if(!hasStruct){
     return '<div style="font-size:13px;line-height:1.85;white-space:pre-line;color:var(--text)">'+escHtml(text)+'</div>';
   }
@@ -1584,39 +1853,6 @@ function renderCopyModal(text){
                 +'<rect x="9" y="9" width="13" height="13" rx="2"/>'
                 +'<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>'
                 +'</div>' : '')
-            + '</div></div>';
-    }
-  }
-
-  // ── Темы письма ──
-  if(sections.themes){
-    var thlines = sections.themes.split('\n');
-    var thItems = [];
-    thlines.forEach(function(l){
-      var t = l.trim().replace(/^\*+|\*+$/g,'').trim();
-      if(!t || t.replace(/\s/g,'').match(/^\.+$/) || t.match(/^-{3,}/)) return;
-      thItems.push(t);
-    });
-    if(thItems.length){
-      window._sectTexts['themes'] = thItems.map(function(t){ return t.replace(/^[A-Za-zА-Яа-я]\s*[—–-]\s*/,''); }).join('\n');
-      html += '<div style="margin-bottom:16px" id="sect-themes">'
-            + sectionHdr('Темы письма', null)
-            + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px">'
-            + thItems.map(function(v,i){
-                return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:6px 0;'
-                  +(i<thItems.length-1?'border-bottom:1px solid var(--border);':'')+'font-size:13px;line-height:1.65;color:var(--text)">'
-                  +'<span>'+escHtml(v)+'</span>'
-                  +'<button onclick="copySectText(\'' + escHtml(v).replace(/\'/g,"\\'")+'\')" title="Скопировать" '
-                  +'style="width:20px;height:20px;border-radius:4px;background:transparent;border:1px solid var(--border);'
-                  +'display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);'
-                  +'transition:all .15s;font-family:inherit;flex-shrink:0" '
-                  +'onmouseover="this.style.color=\'var(--blue)\';this.style.borderColor=\'var(--blue)\'" '
-                  +'onmouseout="this.style.color=\'var(--muted)\';this.style.borderColor=\'var(--border)\'">'
-                  +'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
-                  +'<rect x="9" y="9" width="13" height="13" rx="2"/>'
-                  +'<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>'
-                  +'</div>';
-              }).join('')
             + '</div></div>';
     }
   }
@@ -1786,7 +2022,70 @@ function selectPlatform(el,platform){
 }
 
 function sendToInterview(news){ pubSelectedNews=news; showSec('pub-interview',document.querySelector('[onclick*="pub-interview"]')); var el=document.getElementById('interview-news-text'); if(el){ el.style.fontStyle='normal'; el.style.color='var(--text)'; el.textContent=news.title+(news.body?' — '+news.body.substring(0,200)+'…':''); } }
-function sendToStrategy(news){ pubSelectedNews=news; showSec('pub-strategy',document.querySelector('[onclick*="pub-strategy"]')); buildPubStrategy(); }
+function sendToStrategy(news){
+  pubSelectedNews = news;
+  if(!getToken()){ alert('Добавьте GitHub токен в левом меню'); return; }
+
+  // Вычислить папку текущей недели (Пн–Вс)
+  var now = new Date();
+  var day = now.getDay() || 7;
+  var mon = new Date(now); mon.setDate(now.getDate() - day + 1); mon.setHours(0,0,0,0);
+  var sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  function fd(d){ return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear(); }
+  var folder = fd(mon)+'-'+fd(sun);
+
+  // Имя файла: ГГГГ-ММ-ДД-slug.md
+  var datePrefix = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var slug = news.title.toLowerCase()
+    .replace(/ё/g,'e').replace(/[^a-zа-я0-9\s]/gi,'')
+    .trim().replace(/\s+/g,'-')
+    .substring(0,60);
+  var filename = datePrefix+'-'+slug+'.md';
+  var path = 'social-news/'+folder+'/'+filename;
+
+  // Контент файла
+  var content = '# '+news.title+'\n\n'
+    + (news.body ? news.body+'\n\n' : '')
+    + (news.source && news.source !== '#' ? 'Источник: '+news.source+'\n' : '')
+    + (news.neyruRec ? '\n## Рекомендация для НЭЙРУ\n'+news.neyruRec+'\n' : '');
+
+  var apiUrl = 'https://api.github.com/repos/Elenafromsochi/neuru-publish/contents/'+path;
+  var token = getToken();
+
+  // Проверить существует ли файл (получить sha)
+  var xhr1 = new XMLHttpRequest();
+  xhr1.open('GET', apiUrl+'?ref=main', true);
+  xhr1.setRequestHeader('Authorization','token '+token);
+  xhr1.setRequestHeader('Accept','application/vnd.github.v3+json');
+  xhr1.onreadystatechange = function(){
+    if(xhr1.readyState !== 4) return;
+    var sha = null;
+    try{ var d=JSON.parse(xhr1.responseText); sha=d.sha||null; }catch(e){}
+
+    var body = {
+      message: 'news: '+news.title.substring(0,60),
+      content: btoa(unescape(encodeURIComponent(content))),
+      branch: 'main'
+    };
+    if(sha) body.sha = sha;
+
+    var xhr2 = new XMLHttpRequest();
+    xhr2.open('PUT', apiUrl, true);
+    xhr2.setRequestHeader('Content-Type','application/json');
+    xhr2.setRequestHeader('Authorization','token '+token);
+    xhr2.setRequestHeader('Accept','application/vnd.github.v3+json');
+    xhr2.onreadystatechange = function(){
+      if(xhr2.readyState !== 4) return;
+      if(xhr2.status >= 200 && xhr2.status < 300){
+        alert('✅ Новость сохранена:\nneuru-publish/'+path);
+      } else {
+        alert('⚠ Ошибка записи: '+xhr2.status+'\n'+xhr2.responseText.substring(0,200));
+      }
+    };
+    xhr2.send(JSON.stringify(body));
+  };
+  xhr1.send();
+}
 
 function startInterview(){
   if(!pubSelectedNews){ alert('Сначала выберите новость'); return; }
@@ -1865,6 +2164,1771 @@ function callClaude(systemPrompt,messages,callback){
   xhr.onerror=function(){ callback('Ошибка сети — проверь прокси: '+CLAUDE_PROXY); };
   xhr.send(JSON.stringify(payload));
 }
+
+
+// ══ ИИ-АНАЛИТИК ══
+
+function switchAnalyticsTab(el, panelId){
+  document.querySelectorAll('.an-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.an-panel').forEach(function(p){ p.style.display='none'; });
+  el.classList.add('active');
+  var panel = document.getElementById(panelId);
+  if(panel) panel.style.display='block';
+  if(panelId === 'an-dashboard-panel') loadAnWeekData();
+  if(panelId === 'an-analysis-panel') loadAnAnalysis();
+}
+
+// ── Дропзона ──
+var anFiles = [];
+
+function handleAnDrop(e){
+  e.preventDefault();
+  document.getElementById('an-dropzone').style.borderColor='var(--border)';
+  document.getElementById('an-dropzone').style.background='var(--bg)';
+  handleAnFiles(e.dataTransfer.files);
+}
+
+function handleAnFiles(files){
+  for(var i=0;i<files.length;i++){
+    var f = files[i];
+    if(!f.type.match(/image|pdf/)) continue;
+    anFiles.push(f);
+    renderAnQueue();
+  }
+}
+
+function renderAnQueue(){
+  var q = document.getElementById('an-file-queue');
+  if(!q) return;
+  q.innerHTML = anFiles.map(function(f,i){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px">'
+      + '<span style="font-size:16px">'+(f.type.match(/pdf/)?'📄':'🖼️')+'</span>'
+      + '<span style="font-size:12px;color:var(--text);flex:1">'+f.name+'</span>'
+      + '<span style="font-size:11px;color:var(--muted)">'+(f.size/1024).toFixed(0)+' KB</span>'
+      + '<button onclick="removeAnFile('+i+')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;padding:2px 6px">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function removeAnFile(idx){
+  anFiles.splice(idx,1);
+  renderAnQueue();
+}
+
+function clearAnQueue(){
+  anFiles=[];
+  renderAnQueue();
+  document.getElementById('an-result-card').style.display='none';
+  document.getElementById('an-upload-badge').textContent='Готово к вводу';
+}
+
+// ── Извлечение метрик через Claude API ──
+function processAnScreenshots(){
+  if(!anFiles.length){ alert('Загрузите хотя бы один скриншот'); return; }
+  var badge = document.getElementById('an-upload-badge');
+  badge.textContent = '⏳ Читаю файлы…';
+  var context = document.getElementById('an-week-context').value.trim();
+
+  var toRead = anFiles.length, images = [], errors = 0;
+  function onRead(b64, mime, name){
+    if(b64) images.push({b64:b64, mime:mime, name:name});
+    else errors++;
+    if(images.length + errors === toRead){
+      if(!images.length){ badge.textContent='⚠ Не удалось прочитать файлы'; return; }
+      sendToClaudeVision(images, context);
+    }
+  }
+
+  anFiles.forEach(function(f){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var result = e.target.result;
+      if(!result || result.indexOf(',') < 0){ onRead(null, f.type, f.name); return; }
+      onRead(result.split(',')[1], f.type, f.name);
+    };
+    reader.onerror = function(){ onRead(null, f.type, f.name); };
+    reader.readAsDataURL(f);
+  });
+}
+
+function sendToClaudeVision(images, context){
+  var badge = document.getElementById('an-upload-badge');
+  badge.textContent = '⏳ Анализирую…';
+  var msgContent = [];
+
+  images.forEach(function(img){
+    // PDF не поддерживается как image — пропускаем
+    if(img.mime.match(/pdf/)) return;
+    msgContent.push({
+      type:'image',
+      source:{ type:'base64', media_type: img.mime, data: img.b64 }
+    });
+  });
+
+  var today = new Date();
+  var dd = String(today.getDate()).padStart(2,'0');
+  var mm = String(today.getMonth()+1).padStart(2,'0');
+  var yyyy = today.getFullYear();
+  var dateStr = dd+'.'+mm+'.'+yyyy;
+
+  // Промпт: только перевод цифр, никакого анализа
+  var weekPeriod = (document.getElementById('an-week-context').value||'').trim() || dateStr;
+  var prompt = 'Ты помощник, который переводит скриншоты статистики Яндекс 360 в структурированный Markdown. ТОЛЬКО цифры — никакого анализа и выводов.'
+    + ' Период: ' + weekPeriod + '.'
+    + ' На скриншоте может быть статистика одного или нескольких писем. Для КАЖДОГО письма создай отдельный блок строго в таком формате:'
+    + ' ## [День недели] — [Сегмент]'
+    + ' (например: ## Вторник — Москва или ## Четверг — СПб)'
+    + ' | Метрика | Значение |'
+    + ' |---------|----------|'
+    + ' | Отправлено | ... |'
+    + ' | Доставлено | ... |'
+    + ' | Открыто | ... |'
+    + ' | Open Rate | ...% |'
+    + ' | Всего кликов | ... |'
+    + ' | Уникальные клики | ... |'
+    + ' | CTR | ...% |'
+    + ' | CTOR | ...% |'
+    + ' | Отписки | ... |'
+    + ' | % отписок | ...% |'
+    + ' | Жалобы на спам | ... |'
+    + ' | Ошибки доставки | ... |'
+    + ' Если значение не видно на скриншоте — ставь прочерк (-). Не придумывай цифры. Не добавляй выводов. Только Markdown, без вводных слов.';
+
+  msgContent.push({ type:'text', text: prompt });
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST',CLAUDE_PROXY,true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onreadystatechange = function(){
+    if(xhr.readyState !== 4) return;
+    if(xhr.status === 0){
+      badge.textContent = '⚠ Нет соединения';
+      alert('Ошибка соединения с API. Проверьте интернет.');
+      return;
+    }
+    try{
+      var data = JSON.parse(xhr.responseText);
+      if(data.error){
+        badge.textContent = '⚠ Ошибка API';
+        alert('Ошибка Claude API: ' + (data.error.message||JSON.stringify(data.error)));
+        return;
+      }
+      var txt = (data.content||[]).map(function(b){ return b.text||''; }).join('').trim();
+      if(!txt){ badge.textContent = '⚠ Пустой ответ'; return; }
+      txt = txt.replace(/^```(?:markdown)?[\r\n]?/,'').replace(/[\r\n]?```$/,'').trim();
+      document.getElementById('an-result-text').textContent = txt;
+      document.getElementById('an-result-card').style.display = 'block';
+      var wp = (document.getElementById('an-week-context').value||'').trim().replace(/\s+/g,'-').replace(/[^\d\.\-]/g,'');
+      var fnEl = document.getElementById('an-result-filename');
+      if(fnEl && wp) fnEl.textContent = 'analytics/week-'+wp+'.md';
+      badge.textContent = '✓ Готово к записи';
+      window._anExtracted = txt;
+    } catch(e){
+      badge.textContent = '⚠ Ошибка разбора';
+      alert('Ошибка: '+e.message+' / статус: '+xhr.status+' / ответ: '+xhr.responseText.substring(0,200));
+    }
+  };
+  xhr.send(JSON.stringify({
+    model:'claude-sonnet-4-6',
+    max_tokens:1500,
+    messages:[{ role:'user', content: msgContent }]
+  }));
+}
+
+// ── Запись в GitHub ──
+function commitAnStats(){
+  var txt = window._anExtracted||'';
+  if(!txt){ alert('Нет данных для записи'); return; }
+  var token = getToken();
+  if(!token){ alert('Добавьте GitHub токен'); return; }
+
+  var weekCtx = (document.getElementById('an-week-context').value||'').trim().replace(/\s+/g,'-').replace(/[^\d\.\-]/g,'') || new Date().toLocaleDateString('ru').replace(/\./g,'.'+new Date().toLocaleDateString('ru').split('.')[1]);
+  if(!weekCtx){ alert('Укажите период недели (например 03.08.2026-09.08.2026)'); return; }
+  var path = 'analytics/week-'+weekCtx+'.md';
+  var apiUrl = 'https://api.github.com/repos/'+REPO+'/contents/'+path;
+
+  // Сначала получаем sha существующего файла
+  var xhr1 = new XMLHttpRequest();
+  xhr1.open('GET', apiUrl+'?ref='+BRANCH, true);
+  xhr1.setRequestHeader('Authorization','token '+token);
+  xhr1.setRequestHeader('Accept','application/vnd.github.v3+json');
+  xhr1.onreadystatechange = function(){
+    if(xhr1.readyState !== 4) return;
+    var sha = null;
+    var existingContent = '';
+    try{
+      var d = JSON.parse(xhr1.responseText);
+      sha = d.sha||null;
+      existingContent = d.content ? atob(d.content.replace(/\n/g,'')) : '';
+    } catch(e){}
+
+    var newContent = existingContent
+      ? existingContent.trimEnd() + '\n\n' + txt
+      : txt;
+
+    var body = {
+      message: 'stats-input: добавлена статистика '+new Date().toLocaleDateString('ru'),
+      content: btoa(unescape(encodeURIComponent(newContent))),
+      branch: BRANCH
+    };
+    if(sha) body.sha = sha;
+
+    var xhr2 = new XMLHttpRequest();
+    xhr2.open('PUT', apiUrl, true);
+    xhr2.setRequestHeader('Content-Type','application/json');
+    xhr2.setRequestHeader('Authorization','token '+token);
+    xhr2.setRequestHeader('Accept','application/vnd.github.v3+json');
+    xhr2.onreadystatechange = function(){
+      if(xhr2.readyState !== 4) return;
+      if(xhr2.status >= 200 && xhr2.status < 300){
+        document.getElementById('an-upload-badge').textContent = '✅ Записано: analytics/'+path.split('/')[1];
+        clearAnQueue();
+      } else {
+        document.getElementById('an-upload-badge').textContent = '⚠ Ошибка записи: '+xhr2.status;
+      }
+    };
+    xhr2.send(JSON.stringify(body));
+  };
+  xhr1.send();
+}
+
+// ── Журнал из analytics/journal.md ──
+var anJournalLoaded = false;
+
+var anJournalMd = null;
+
+function loadAnDashboard(){
+  var dash = document.getElementById('an-dashboard');
+  if(!dash) return;
+  if(!getToken()){
+    dash.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">🔑 Добавьте GitHub токен для загрузки данных из analytics/journal.md</div>';
+    return;
+  }
+  if(anJournalMd){ buildAnDashboard(anJournalMd); return; }
+  dash.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка analytics/journal.md…</div>';
+  ghFetch('analytics/journal.md').then(function(md){
+    anJournalMd = md;
+    buildAnDashboard(md);
+    // если журнал уже открыт — обновить и его
+    var jel = document.getElementById('an-journal-content');
+    if(jel && anJournalLoaded) jel.innerHTML = renderAnJournal(md);
+  }).catch(function(){
+    dash.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">📂 Файл <code>analytics/journal.md</code> не найден в репозитории</div>';
+  });
+}
+
+function buildAnDashboard(md){
+  var dash = document.getElementById('an-dashboard');
+  if(!dash) return;
+
+  // Парсим секции ## День — Сегмент с вертикальными таблицами | Метрика | Значение |
+  var letters = parseWeekLetters(md);
+
+  if(!letters.length){
+    dash.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Нет данных в файле недели</div>';
+    return;
+  }
+
+  // ── KPI: средние по всем письмам ──
+  function avgMetric(key){
+    var vals = letters.map(function(l){ return parseFloat(l[key]||''); }).filter(function(v){ return !isNaN(v); });
+    return vals.length ? (vals.reduce(function(a,b){return a+b;},0)/vals.length) : null;
+  }
+  function sumMetric(key){
+    var vals = letters.map(function(l){ return parseFloat(l[key]||''); }).filter(function(v){ return !isNaN(v); });
+    return vals.length ? vals.reduce(function(a,b){return a+b;},0) : null;
+  }
+
+  var avgOR = avgMetric('прочитано');
+  var avgCTR = avgMetric('ctr');
+  var totalSent = sumMetric('отправлено');
+  var avgUnsub = avgMetric('отписки');
+
+  function fmt(v, suffix){ return v !== null ? v.toFixed(1)+suffix : '—'; }
+
+  var kpiHtml = '<div class="kpi-grid">'
+    + '<div class="kpi"><div class="kpi-lbl">Открываемость</div><div class="kpi-val kv-blue">'+fmt(avgOR,'%')+'</div><div class="kpi-ch" style="color:var(--muted)">Среднее по неделе</div></div>'
+    + '<div class="kpi"><div class="kpi-lbl">Клики (CTR)</div><div class="kpi-val kv-violet">'+fmt(avgCTR,'%')+'</div><div class="kpi-ch" style="color:var(--muted)">Среднее по неделе</div></div>'
+    + '<div class="kpi"><div class="kpi-lbl">Отправлено</div><div class="kpi-val kv-green">'+(totalSent!==null?Math.round(totalSent).toLocaleString('ru'):'—')+'</div><div class="kpi-ch" style="color:var(--muted)">Всего за неделю</div></div>'
+    + '<div class="kpi"><div class="kpi-lbl">Отписки</div><div class="kpi-val kv-amber">'+fmt(avgUnsub,'%')+'</div><div class="kpi-ch" style="color:var(--muted)">Среднее по неделе</div></div>'
+    + '</div>';
+
+  // ── Бары Open Rate ──
+  var maxOR = 0;
+  letters.forEach(function(l){ var v=parseFloat(l['прочитано']||''); if(!isNaN(v)&&v>maxOR) maxOR=v; });
+  if(!maxOR) maxOR=100;
+
+  var barsHtml = letters.map(function(l){
+    var or = parseFloat(l['прочитано']||'');
+    var w = isNaN(or) ? 0 : Math.round(or/maxOR*100);
+    var val = isNaN(or) ? '—' : or+'%';
+    return '<div class="bar-row">'
+      +'<div class="bar-lbl">'+escHtml(l._title)+'</div>'
+      +'<div class="bar-track"><div class="bar-fill" style="width:'+w+'%"></div></div>'
+      +'<div class="bar-val">'+val+'</div></div>';
+  }).join('');
+
+  var weekLabel = document.getElementById('an-week-dates-label') ? document.getElementById('an-week-dates-label').textContent : '';
+
+  var a2Html = '<div class="a2">'
+    + '<div class="card"><div class="card-hdr"><div class="card-title">Open Rate по сегментам</div><div class="badge">'+escHtml(weekLabel)+'</div></div>'+barsHtml+'</div>'
+    + '</div>';
+
+  // ── Таблица детализации ──
+  var tableHtml = '<div class="card"><div class="card-hdr"><div class="card-title">Детализация · '+escHtml(weekLabel)+'</div></div>'
+    + '<div style="overflow-x:auto"><table class="a-table"><thead><tr>'
+    + '<th>Письмо</th><th>Отправлено</th><th>Прочитано</th><th>CTR</th><th>CTOR</th><th>Отписки</th><th>Ошибки</th>'
+    + '</tr></thead><tbody>'
+    + letters.map(function(l){
+        var or = parseFloat(l['прочитано']||'');
+        var orClass = (!isNaN(or) && avgOR && or >= avgOR) ? 'tup' : (!isNaN(or) && avgOR && or < avgOR-3) ? 'tdn' : '';
+        return '<tr>'
+          +'<td>'+escHtml(l._title)+'</td>'
+          +'<td>'+(l['отправлено']||'—')+'</td>'
+          +'<td>'+(orClass?'<span class="'+orClass+'">'+or+'%</span>':(isNaN(or)?'—':or+'%'))+'</td>'
+          +'<td>'+(l['ctr']||'—')+'</td>'
+          +'<td>'+(l['ctor']||'—')+'</td>'
+          +'<td>'+(l['отписки']||'—')+'</td>'
+          +'<td>'+(l['ошибки']||'—')+'</td>'
+          +'</tr>';
+      }).join('')
+    + '</tbody></table></div></div>';
+
+  dash.innerHTML = kpiHtml + a2Html + tableHtml;
+  // Выводы недели подгрузятся через loadAnAnalysisInline
+}
+
+function parseWeekLetters(md){
+  // Парсит файл week-*.md с форматом ## День — Сегмент + вертикальная таблица
+  var lines = md.split('\n');
+  var letters = [];
+  var curTitle = null;
+  var curData = {};
+
+  function flush(){
+    if(curTitle) letters.push(Object.assign({_title: curTitle}, curData));
+    curData = {};
+  }
+
+  lines.forEach(function(l){
+    var t = l.trim();
+    // Секция письма: ## Вторник — Москва
+    if(t.match(/^##\s/) && !t.match(/^###/)){
+      flush();
+      curTitle = t.replace(/^##\s+/,'').trim();
+      return;
+    }
+    if(!curTitle) return;
+    // Строка таблицы | Метрика | Значение |
+    if(t.match(/^\|/) && !t.match(/^[\|\s\-:]+$/)){
+      var cells = t.split('|').map(function(c){ return c.trim(); }).filter(Boolean);
+      if(cells.length >= 2){
+        var key = cells[0].toLowerCase().replace(/[^а-яёa-z0-9%]/gi,'');
+        var val = cells[1];
+        // Нормализация ключей
+        if(key.match(/отправлено/)) curData['отправлено'] = val.replace(/[^\d]/g,'');
+        else if(key.match(/прочитано/)) curData['прочитано'] = parseFloat(val);
+        else if(key === 'ctr') curData['ctr'] = val;
+        else if(key === 'ctor') curData['ctor'] = val;
+        else if(key.match(/отписки/)) curData['отписки'] = val;
+        else if(key.match(/ошибки/)) curData['ошибки'] = val;
+        else if(key.match(/клики/)) curData['клики'] = val;
+      }
+    }
+  });
+  flush();
+  return letters;
+}
+
+
+function loadAnJournal(){
+  var el = document.getElementById('an-journal-content');
+  if(!el) return;
+  if(!getToken()){
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">🔑 Добавьте GitHub токен для загрузки журнала</div>';
+    return;
+  }
+  if(anJournalMd){ el.innerHTML = renderAnJournal(anJournalMd); anJournalLoaded=true; return; }
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка journal.md…</div>';
+  ghFetch('analytics/journal.md').then(function(md){
+    anJournalMd = md;
+    anJournalLoaded = true;
+    el.innerHTML = renderAnJournal(md);
+    // обновить дашборд если ещё не загружен
+    var dash = document.getElementById('an-dashboard');
+    if(dash && dash.querySelector('.loading')) buildAnDashboard(md);
+  }).catch(function(){
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">📂 Файл <code>analytics/journal.md</code> не найден</div>';
+  });
+}
+
+function renderAnJournal(md){
+  // Парсим секции по ## заголовкам
+  var sections = [];
+  var curTitle = null, curLines = [];
+  md.split('\n').forEach(function(l){
+    if(l.match(/^##\s/)){
+      if(curTitle !== null) sections.push({title:curTitle, body:curLines.join('\n').trim()});
+      curTitle = l.replace(/^##\s+/,'').trim();
+      curLines = [];
+    } else if(curTitle !== null){
+      curLines.push(l);
+    }
+  });
+  if(curTitle !== null) sections.push({title:curTitle, body:curLines.join('\n').trim()});
+
+  if(!sections.length){
+    // Нет ## заголовков — показываем как markdown
+    return '<div class="card"><div style="font-size:13px;line-height:1.85;white-space:pre-line;color:var(--text)">'+escHtml(md)+'</div></div>';
+  }
+
+  return sections.map(function(s){
+    return '<div class="an-journal-entry">'
+      + '<div class="an-journal-week">'+escHtml(s.title)+'</div>'
+      + renderAnJournalBody(s.body)
+      + '</div>';
+  }).join('');
+}
+
+function renderAnJournalBody(text){
+  if(!text) return '';
+  // Ищем таблицу markdown
+  var lines = text.split('\n');
+  var out = '';
+  var tableLines = [];
+  var inTable = false;
+  var paraLines = [];
+
+  function flushPara(){
+    if(!paraLines.length) return;
+    var t = paraLines.join(' ').trim();
+    paraLines = [];
+    if(!t) return;
+    // **Выводы:** выделяем
+    if(t.match(/^\*\*[^*]+:\*\*/)){
+      out += '<div style="margin:8px 0 4px;font-size:12px;font-weight:700;color:var(--text)">'+inlineFormat(t)+'</div>';
+    } else {
+      out += '<div style="font-size:12px;line-height:1.7;color:var(--text);margin-bottom:4px">'+inlineFormat(t)+'</div>';
+    }
+  }
+  function flushTable(){
+    if(!tableLines.length) return;
+    var rows = tableLines.filter(function(l){ return !l.match(/^[\|\s\-:]+$/); });
+    if(!rows.length){ tableLines=[]; return; }
+    var headers = rows[0].split('|').map(function(c){ return c.trim(); }).filter(Boolean);
+    var body = rows.slice(1);
+    var html = '<div style="overflow-x:auto;margin:8px 0"><table class="an-journal-table">';
+    html += '<thead><tr>'+headers.map(function(h){ return '<th>'+escHtml(h)+'</th>'; }).join('')+'</tr></thead>';
+    html += '<tbody>'+body.map(function(r){
+      var cells = r.split('|').map(function(c){ return c.trim(); }).filter(Boolean);
+      return '<tr>'+cells.map(function(c){ return '<td>'+inlineFormat(c)+'</td>'; }).join('')+'</tr>';
+    }).join('')+'</tbody></table></div>';
+    out += html;
+    tableLines = [];
+  }
+
+  lines.forEach(function(l){
+    if(l.match(/^\|/)){
+      flushPara();
+      inTable = true;
+      tableLines.push(l);
+    } else {
+      if(inTable){ flushTable(); inTable=false; }
+      if(!l.trim()){ flushPara(); }
+      else { paraLines.push(l.trim()); }
+    }
+  });
+  flushPara();
+  if(inTable) flushTable();
+  return out;
+}
+
+
+// ══ АНАЛИТИК — СЛАЙДЕР НЕДЕЛЬ ══
+
+var anWeekList = [];      // список найденных week-*.md файлов
+var anWeekIdx = 0;        // текущий индекс в списке
+var anWeekCache = {};     // кеш: filename → md content
+var anAnalysisCache = {}; // кеш: analysis filename → md content
+
+function loadAnWeekList(){
+  if(!getToken()){
+    var dash = document.getElementById('an-dashboard');
+    if(dash) dash.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">🔑 Добавьте GitHub токен для загрузки данных</div>';
+    return;
+  }
+  // Получить список файлов папки analytics/
+  var url = 'https://api.github.com/repos/'+REPO+'/contents/analytics?ref='+BRANCH;
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.setRequestHeader('Authorization','token '+getToken());
+  xhr.setRequestHeader('Accept','application/vnd.github.v3+json');
+  xhr.onreadystatechange = function(){
+    if(xhr.readyState !== 4) return;
+    try{
+      var files = JSON.parse(xhr.responseText);
+      // Фильтруем week-*.md файлы, сортируем по дате
+      anWeekList = files
+        .filter(function(f){ return f.name.match(/^week-[\d\.]+.*\.md$/); })
+        .sort(function(a,b){ return a.name > b.name ? 1 : -1; });
+      if(!anWeekList.length){
+        document.getElementById('an-dashboard').innerHTML =
+          '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">📂 Файлы week-*.md не найдены в analytics/</div>';
+        return;
+      }
+      anWeekIdx = anWeekList.length - 1; // последняя неделя
+      loadAnWeekData();
+    } catch(e){
+      document.getElementById('an-dashboard').innerHTML =
+        '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">⚠ Ошибка загрузки списка файлов</div>';
+    }
+  };
+  xhr.send();
+}
+
+function slideAnWeek(dir){
+  var newIdx = anWeekIdx + dir;
+  if(newIdx < 0 || newIdx >= anWeekList.length) return;
+  anWeekIdx = newIdx;
+  loadAnWeekData();
+}
+
+function loadAnWeekData(){
+  if(!anWeekList.length){ loadAnWeekList(); return; }
+  var file = anWeekList[anWeekIdx];
+  var period = file.name.replace('week-','').replace('.md','');
+
+  // Обновить слайдер
+  var numEl = document.getElementById('an-week-num');
+  var datesEl = document.getElementById('an-week-dates-label');
+  if(numEl) numEl.textContent = (anWeekIdx+1)+'/'+anWeekList.length;
+  if(datesEl) datesEl.textContent = period.replace(/-/g,' — ');
+
+  // Загрузить данные если не в кеше
+  var dash = document.getElementById('an-dashboard');
+  if(anWeekCache[file.name]){
+    buildAnDashboard(anWeekCache[file.name]);
+    loadAnAnalysisInline(period);
+    return;
+  }
+  if(dash) dash.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка '+file.name+'…</div>';
+  ghFetch('analytics/'+file.name).then(function(md){
+    anWeekCache[file.name] = md;
+    buildAnDashboard(md);
+    loadAnAnalysisInline(period);
+  }).catch(function(){
+    if(dash) dash.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">📂 Файл не найден: analytics/'+file.name+'</div>';
+  });
+}
+
+function loadAnAnalysisInline(period){
+  var wrap = document.getElementById('an-analysis-inline');
+  var el = document.getElementById('an-analysis-inline-content');
+  if(!wrap || !el) return;
+  var fn = 'analysis-'+period+'.md';
+  if(anAnalysisCache[fn]){
+    el.innerHTML = renderAnAnalysis(anAnalysisCache[fn]);
+    wrap.style.display = 'block';
+    return;
+  }
+  ghFetch('analytics/'+fn).then(function(md){
+    anAnalysisCache[fn] = md;
+    el.innerHTML = renderAnAnalysis(md);
+    wrap.style.display = 'block';
+  }).catch(function(){
+    wrap.style.display = 'none'; // нет файла — просто скрыть блок
+  });
+}
+
+function loadAnAnalysis(){
+  if(!anWeekList.length){ loadAnWeekList(); return; }
+  var file = anWeekList[anWeekIdx];
+  var period = file.name.replace('week-','').replace('.md','');
+  var fn = 'analysis-'+period+'.md';
+  var el = document.getElementById('an-analysis-content');
+  if(!el) return;
+  if(anAnalysisCache[fn]){
+    el.innerHTML = renderAnAnalysis(anAnalysisCache[fn]);
+    return;
+  }
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка анализа…</div>';
+  ghFetch('analytics/'+fn).then(function(md){
+    anAnalysisCache[fn] = md;
+    el.innerHTML = renderAnAnalysis(md);
+  }).catch(function(){
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">📂 Файл analysis-'+period+'.md не найден.<br><span style="font-size:11px">Запустите /analyze '+period+' в Claude Code для создания анализа.</span></div>';
+  });
+}
+
+function renderAnAnalysis(md){
+  // Показываем только три раздела: Что сработало, Рекомендации, Вопросы
+  var ALLOWED = [
+    /что сработало/i,
+    /рекоменда/i,
+    /вопросы/i
+  ];
+
+  var STYLES = {
+    сработало: { bg:'rgba(16,185,129,.06)', border:'rgba(16,185,129,.25)', color:'#059669', icon:'✅' },
+    рекоменда: { bg:'rgba(37,99,235,.05)', border:'rgba(37,99,235,.2)', color:'var(--blue)', icon:'📋' },
+    вопросы:   { bg:'rgba(245,158,11,.07)', border:'rgba(245,158,11,.3)', color:'#d97706', icon:'❓' }
+  };
+
+  function getStyle(title){
+    if(/что сработало/i.test(title)) return STYLES['сработало'];
+    if(/рекоменда/i.test(title)) return STYLES['рекоменда'];
+    if(/вопросы/i.test(title)) return STYLES['вопросы'];
+    return { bg:'var(--bg)', border:'var(--border)', color:'var(--muted)', icon:'' };
+  }
+
+  var lines = md.split('\n');
+  var html = '';
+  var curSection = null;
+  var curLines = [];
+  var allowed = false;
+
+  function flushSection(){
+    if(!curSection || !allowed) { curLines=[]; return; }
+    var body = curLines.join('\n').trim();
+    if(!body){ curLines=[]; return; }
+    var st = getStyle(curSection);
+    html += '<div style="background:'+st.bg+';border:1px solid '+st.border+';border-radius:12px;padding:16px 20px;margin-bottom:14px;box-sizing:border-box;word-break:break-word">'
+      + '<div style="font-size:11px;font-weight:700;color:'+st.color+';text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">'
+      + (st.icon?st.icon+' ':'')+escHtml(curSection)+'</div>'
+      + '<div style="font-size:13px;line-height:1.8;color:var(--text)">'+renderAnMd(body)+'</div>'
+      + '</div>';
+    curLines = [];
+  }
+
+  lines.forEach(function(l){
+    if(l.match(/^##\s/) && !l.match(/^###/)){
+      flushSection();
+      curSection = l.replace(/^##\s+/,'').trim();
+      allowed = ALLOWED.some(function(re){ return re.test(curSection); });
+    } else if(l.match(/^#\s/)){
+      // заголовок файла — пропускаем
+    } else if(curSection){
+      curLines.push(l);
+    }
+  });
+  flushSection();
+  return '<div style="display:block;width:100%;box-sizing:border-box">'+(html || '<div style="padding:16px;text-align:center;font-size:13px;color:var(--muted)">Файл анализа не содержит разделов «Что сработало», «Рекомендации» или «Вопросы»</div>')+'</div>';
+}
+
+function renderAnMd(text){
+  // Простой markdown → html для выводов
+  var lines = text.split('\n');
+  var html = '';
+  var inTable = false;
+  var tableLines = [];
+
+  function flushTable(){
+    if(!tableLines.length) return;
+    var rows = tableLines.filter(function(l){ return !l.match(/^[\|\s\-:]+$/); });
+    if(!rows.length){ tableLines=[]; return; }
+    var headers = rows[0].split('|').map(function(c){ return c.trim(); }).filter(Boolean);
+    html += '<div style="overflow-x:auto;margin:8px 0"><table class="an-journal-table"><thead><tr>'
+      + headers.map(function(h){ return '<th>'+escHtml(h)+'</th>'; }).join('')
+      + '</tr></thead><tbody>'
+      + rows.slice(1).map(function(r){
+          var cells = r.split('|').map(function(c){ return c.trim(); }).filter(Boolean);
+          return '<tr>'+cells.map(function(c){ return '<td>'+inlineFormat(c)+'</td>'; }).join('')+'</tr>';
+        }).join('')
+      + '</tbody></table></div>';
+    tableLines = [];
+  }
+
+  lines.forEach(function(l){
+    var t = l.trim();
+    if(l.match(/^\|/)){
+      inTable = true; tableLines.push(l); return;
+    }
+    if(inTable){ flushTable(); inTable=false; }
+    if(!t){ html += '<div style="height:6px"></div>'; return; }
+    if(t.match(/^###?\s/)){ html += '<div style="font-size:12px;font-weight:700;color:var(--text);margin:10px 0 4px">'+escHtml(t.replace(/^###?\s+/,''))+'</div>'; return; }
+    if(t.match(/^[-*]\s/)){ html += '<div style="font-size:13px;line-height:1.7;padding-left:14px;position:relative;max-width:100%;word-break:break-word"><span style="position:absolute;left:0">•</span>'+inlineFormat(t.replace(/^[-*]\s+/,''))+'</div>'; return; }
+    html += '<div style="font-size:13px;line-height:1.8;max-width:100%;word-break:break-word">'+inlineFormat(t)+'</div>';
+  });
+  if(inTable) flushTable();
+  return '<div style="display:block;width:100%;box-sizing:border-box">'+html+'</div>';
+}
+
+// ══ ОБЩИЕ УТИЛИТЫ КАЛЕНДАРЯ ПУБЛИКАЦИЙ ══
+var PUB_REPO = 'Elenafromsochi/neuru-publish';
+var PCPY_PLATFORM_LABELS = {
+  dzen:'📰 Дзен', vk:'💙 ВКонтакте', tenchat:'🤝 ТенЧат',
+  welcome:'🌟 Welcome Times', vc:'🔷 VC.ru', mitt:'🏨 MITT Connect'
+};
+var PCPY_PLATFORM_MAP = {
+  'дзен':'dzen','dzen':'dzen','вконтакте':'vk','вк':'vk','vk':'vk',
+  'тенчат':'tenchat','tenchat':'tenchat','ten chat':'tenchat',
+  'welcome times':'welcome','welcome':'welcome',
+  'vc.ru':'vc','vc':'vc','mitt connect':'mitt','mitt':'mitt'
+};
+
+function pcpyDetectPlatform(str){
+  if(!str) return 'other';
+  var s = str.toLowerCase().trim();
+  for(var k in PCPY_PLATFORM_MAP){ if(s.indexOf(k)>=0) return PCPY_PLATFORM_MAP[k]; }
+  return 'other';
+}
+
+// Загрузка файла через Raw URL (быстро, без авторизации для публичных репо)
+function pubFetchRaw(path, cb){
+  var url = 'https://raw.githubusercontent.com/'+PUB_REPO+'/main/'+path;
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 10000;
+  xhr.onreadystatechange = function(){ if(xhr.readyState===4) cb(xhr.status, xhr.responseText); };
+  xhr.ontimeout = function(){ cb(408, ''); };
+  xhr.send();
+}
+
+// Загрузка через GitHub API (для листинга папок)
+function pubFetchAPI(path, cb){
+  var tok = getToken();
+  var url = 'https://api.github.com/repos/'+PUB_REPO+'/contents/'+path+'?ref=main';
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 10000;
+  xhr.setRequestHeader('Accept','application/vnd.github.v3+json');
+  if(tok) xhr.setRequestHeader('Authorization','token '+tok);
+  xhr.onreadystatechange = function(){ if(xhr.readyState===4) cb(xhr.status, xhr.responseText); };
+  xhr.ontimeout = function(){ cb(408, ''); };
+  xhr.send();
+}
+
+// Рендер календаря
+function pubRenderCalendar(elId, labelId, year, month, datesWithData, selectedDate, onDayClick){
+  var el = document.getElementById(elId);
+  var lbl = document.getElementById(labelId);
+  if(!el) return;
+  var months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  lbl.textContent = months[month]+' '+year;
+  var firstDay = new Date(year, month, 1).getDay();
+  firstDay = (firstDay===0)?6:firstDay-1;
+  var daysInMonth = new Date(year, month+1, 0).getDate();
+  var html = '';
+  ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(function(d){
+    html += '<div style="text-align:center;font-size:10px;font-weight:700;color:var(--muted);padding:4px 0">'+d+'</div>';
+  });
+  for(var i=0;i<firstDay;i++) html += '<div class="pub-cal-day empty"></div>';
+  for(var d=1;d<=daysInMonth;d++){
+    var dd = String(d).padStart(2,'0');
+    var mm = String(month+1).padStart(2,'0');
+    var ds = dd+'.'+mm+'.'+year;
+    var hasData = datesWithData.indexOf(ds)>=0;
+    var isSel = ds===selectedDate;
+    var cls = 'pub-cal-day'+(hasData?' has-data':'')+(isSel?' selected':'');
+    html += '<div class="'+cls+'" data-date="'+ds+'" onclick="'+onDayClick+'(\''+ds+'\')" title="'+ds+'">'
+      +'<span>'+d+'</span>'+(hasData?'<span class="pub-cal-dot"></span>':'')+'</div>';
+  }
+  el.innerHTML = html;
+}
+
+// ══ ИИ-СТРАТЕГ-ПУБЛИЦИСТ ══
+var stratCalYear = new Date().getFullYear();
+var stratCalMonth = new Date().getMonth();
+var stratCalDates = [];
+var stratCalSelected = null;
+var _stratBusy = false;
+
+function stratInitCal(){
+  stratCalYear = new Date().getFullYear();
+  stratCalMonth = new Date().getMonth();
+  stratCalSelected = null;
+  // Загружаем список дат из social/strategy/
+  pubFetchAPI('social/strategy', function(status, text){
+    stratCalDates = [];
+    if(status===200){
+      try{
+        var files = JSON.parse(text);
+        if(Array.isArray(files)) files.forEach(function(f){
+          var m = f.name.match(/social-week-(\d{2}\.\d{2}\.\d{4})\.md/);
+          if(m) stratCalDates.push(m[1]);
+        });
+      }catch(e){}
+    }
+    stratRenderCal();
+    document.getElementById('pcpy-body').innerHTML = stratCalDates.length
+      ? '<div style="text-align:center;color:var(--muted);font-size:13px;padding:30px 0">Выберите дату в календаре</div>'
+      : '<div style="text-align:center;color:var(--muted);font-size:13px;padding:30px 0">Выберите дату в календаре</div>';
+  });
+}
+
+function stratRenderCal(){
+  pubRenderCalendar('strat-cal','strat-cal-label',stratCalYear,stratCalMonth,stratCalDates,stratCalSelected,'stratCalSelect');
+}
+
+function stratCalNav(dir){
+  stratCalMonth += dir;
+  if(stratCalMonth<0){ stratCalMonth=11; stratCalYear--; }
+  if(stratCalMonth>11){ stratCalMonth=0; stratCalYear++; }
+  stratRenderCal();
+}
+
+function stratCalSelect(dateStr){
+  if(_stratBusy) return;
+  _stratBusy = true;
+  setTimeout(function(){ _stratBusy=false; }, 800);
+  stratCalSelected = dateStr;
+  // Обновляем выделение без перерисовки (Safari bug)
+  document.querySelectorAll('#strat-cal .pub-cal-day').forEach(function(el){
+    el.classList.toggle('selected', el.getAttribute('data-date')===dateStr);
+  });
+  var body = document.getElementById('pcpy-body');
+  var tabs = document.getElementById('pcpy-tabs');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка стратегии за '+dateStr+'…</div>';
+  if(tabs) tabs.style.display = 'none';
+  pubFetchRaw('social/strategy/social-week-'+dateStr+'.md', function(status, text){
+    if(status===200 && text){
+      stratRenderContent(text);
+      if(tabs) tabs.style.display = 'flex';
+    } else {
+      body.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>'
+        +'<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Данных за эту дату нет</div>'
+        +'<div style="font-size:13px;color:var(--muted)">Выберите другую дату</div></div>';
+    }
+  });
+}
+
+function stratCalSelectFromInput(){
+  var inp = document.getElementById('strat-date-input');
+  if(!inp || !inp.value.trim()) return;
+  var date = inp.value.trim();
+  if(!date.match(/^\d{2}\.\d{2}\.\d{4}$/)){
+    alert('Формат: ДД.ММ.ГГГГ');
+    return;
+  }
+  stratCalSelect(date);
+}
+
+// Парсинг и рендер стратегии
+var pcpyCurrentTab = 'all';
+var _stratPanels = {};
+var _stratPubs = [];
+
+function stratRenderContent(md){
+  // ── Шаги стратегии для панели "Стратегия" ──
+  var stratHtml = '';
+  var stepNames = {
+    'ШАГ 0':'step0','ШАГ 1':'step1','ШАГ 2':'step2',
+    'ШАГ 3':'step3','ШАГ 5':'step5','ШАГ 6':'step6',
+    'ВОПРОСЫ':'questions'
+  };
+  // Разбиваем по ## заголовкам
+  var h2parts = md.split(/\n(?=## )/);
+  var stepBodies = {};
+  h2parts.forEach(function(part){
+    var hm = part.match(/^## ([^\n]+)/);
+    if(!hm) return;
+    var title = hm[1].trim();
+    var body = part.replace(/^## [^\n]+\n/, '').trim();
+    for(var k in stepNames){
+      if(title.toUpperCase().indexOf(k) >= 0){
+        stepBodies[stepNames[k]] = {title: title, body: body};
+        break;
+      }
+    }
+    if(title.toUpperCase().indexOf('ШАГ 4') >= 0){
+      stepBodies['step4'] = {title: title, body: body};
+    }
+  });
+
+  ['step0','step1','step2','step3','step5','step6','questions'].forEach(function(key){
+    var s = stepBodies[key];
+    if(!s || !s.body.trim()) return;
+    stratHtml += '<div style="margin-bottom:20px">'
+      +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">'+escHtml(s.title)+'</div>'
+      +'<div class="strat-text">'+pcpyMd(s.body)+'</div>'
+      +'</div>';
+  });
+  _stratPanels['all'] = stratHtml
+    ? '<div class="card" style="padding:20px 22px">'+stratHtml+'</div>'
+    : '<div style="color:var(--muted);padding:20px;text-align:center">Разделы стратегии не найдены</div>';
+
+  // ── Панели площадок — сырой текст из шага 4 ──
+  var step4body = stepBodies['step4'] ? stepBodies['step4'].body : '';
+  console.log('step4body length:', step4body.length, 'stepBodies keys:', Object.keys(stepBodies));
+  var platKeys = {dzen:'дзен', vk:'вконтакте', tenchat:'тенчат', welcome:'welcome', vc:'vc.ru', mitt:'mitt'};
+  var platRaw = {};
+  if(step4body){
+    var h3parts = step4body.split(/\n(?=### )/);
+    h3parts.forEach(function(sec){
+      var hm = sec.match(/^### ([^\n]+)/);
+      if(!hm) return;
+      var hl = hm[1].toLowerCase();
+      for(var pl in platKeys){
+        if(hl.indexOf(platKeys[pl]) >= 0){ platRaw[pl] = sec.trim(); break; }
+      }
+    });
+  }
+  ['dzen','vk','tenchat','welcome','vc','mitt'].forEach(function(pl){
+    var raw = platRaw[pl]||'';
+    _stratPanels[pl] = raw
+      ? '<div class="card" style="padding:20px 22px"><div class="strat-text">'+pcpyMd(raw)+'</div></div>'
+      : '<div style="color:var(--muted);font-size:13px;padding:20px 0">Раздел не найден в шаге 4</div>';
+  });
+
+  window._pcpyPubs = [];
+  var activeTab = pcpyCurrentTab||'all';
+  document.getElementById('pcpy-body').innerHTML = _stratPanels[activeTab]||_stratPanels['all'];
+}
+
+
+function pcpySelectTab(btn, platform){
+  document.querySelectorAll('#pcpy-tabs .pcpy-tab').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('pcpy-body').innerHTML = _stratPanels[platform]||_stratPanels['all']||'';
+}
+
+// Совместимость со старым кодом
+function loadPubCopyist(){ stratInitCal(); }
+function stratCalBranch(){}
+
+// ══ ИИ-КОПИРАЙТЕР-ПУБЛИЦИСТ ══
+var copyCalYear = new Date().getFullYear();
+var copyCalMonth = new Date().getMonth();
+var copyCalDates = [];
+var copyCalSelected = null;
+var _copyBusy = false;
+var copyCurrentTab = 'dzen';
+var _copyPlatformCache = {}; // dateStr → { dzen: md, vk: md, ... }
+
+var COPY_PLATFORMS = ['dzen','vk','tenchat','welcome','vc','mitt'];
+
+function copyInitCal(){
+  copyCalYear = new Date().getFullYear();
+  copyCalMonth = new Date().getMonth();
+  copyCalSelected = null;
+  _copyPlatformCache = {};
+  document.getElementById('copy-body').innerHTML =
+    '<div style="text-align:center;color:var(--muted);font-size:13px;padding:30px 0">Выберите дату в календаре</div>';
+  var tabs = document.getElementById('copy-tabs');
+  if(tabs) tabs.style.display = 'none';
+  // Загружаем список дат
+  pubFetchAPI('social/copy', function(status, text){
+    copyCalDates = [];
+    if(status===200){
+      try{
+        var files = JSON.parse(text);
+        if(Array.isArray(files)) files.forEach(function(f){
+          var m = f.name.match(/copy-week-(\d{2}\.\d{2}\.\d{4})-/);
+          if(m && copyCalDates.indexOf(m[1])<0) copyCalDates.push(m[1]);
+        });
+      }catch(e){}
+    }
+    copyRenderCal();
+  });
+}
+
+function copyRenderCal(){
+  pubRenderCalendar('copy-cal','copy-cal-label',copyCalYear,copyCalMonth,copyCalDates,copyCalSelected,'copyCalSelect');
+}
+
+function copyCalNav(dir){
+  copyCalMonth += dir;
+  if(copyCalMonth<0){ copyCalMonth=11; copyCalYear--; }
+  if(copyCalMonth>11){ copyCalMonth=0; copyCalYear++; }
+  copyRenderCal();
+}
+
+function copyCalSelect(dateStr){
+  if(_copyBusy) return;
+  _copyBusy = true;
+  setTimeout(function(){ _copyBusy=false; }, 800);
+  copyCalSelected = dateStr;
+  // Обновляем выделение без перерисовки (Safari bug)
+  document.querySelectorAll('#copy-cal .pub-cal-day').forEach(function(el){
+    el.classList.toggle('selected', el.getAttribute('data-date')===dateStr);
+  });
+  var tabs = document.getElementById('copy-tabs');
+  if(tabs) tabs.style.display = 'flex';
+  // Загружаем активную площадку
+  copyLoadPlatform(dateStr, copyCurrentTab);
+}
+
+function copyCalSelectFromInput(){
+  var inp = document.getElementById('copy-date-input');
+  if(!inp || !inp.value.trim()) return;
+  var date = inp.value.trim();
+  if(!date.match(/^\d{2}\.\d{2}\.\d{4}$/)){
+    alert('Формат: ДД.ММ.ГГГГ');
+    return;
+  }
+  copyCalSelect(date);
+}
+
+function copySelectCopyTab(btn, platform){
+  document.querySelectorAll('#copy-tabs .pcpy-tab').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  copyCurrentTab = platform;
+  if(copyCalSelected) copyLoadPlatform(copyCalSelected, platform);
+}
+
+function copyLoadPlatform(dateStr, platform){
+  var body = document.getElementById('copy-body');
+  // Проверяем кеш
+  if(_copyPlatformCache[dateStr] && _copyPlatformCache[dateStr][platform]!==undefined){
+    copyRenderPlatform(platform, _copyPlatformCache[dateStr][platform]);
+    return;
+  }
+  body.innerHTML = '<div class="loading"><div class="spinner"></div>Загрузка публикаций '+PCPY_PLATFORM_LABELS[platform]+'…</div>';
+  var fname = 'social/copy/copy-week-'+dateStr+'-'+platform+'.md';
+  pubFetchRaw(fname, function(status, text){
+    if(!_copyPlatformCache[dateStr]) _copyPlatformCache[dateStr] = {};
+    _copyPlatformCache[dateStr][platform] = (status===200 && text) ? text : null;
+    copyRenderPlatform(platform, _copyPlatformCache[dateStr][platform]);
+  });
+}
+
+function copyRenderPlatform(platform, md){
+  var body = document.getElementById('copy-body');
+  var label = PCPY_PLATFORM_LABELS[platform]||platform;
+  if(!md){
+    body.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>'
+      +'<div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Данных за эту дату нет</div>'
+      +'<div style="font-size:13px;color:var(--muted)">Публикации для '+label+' ещё не созданы.<br>Запустите ИИ-Копирайтер-Публицист.</div></div>';
+    return;
+  }
+  // Разбиваем на публикации по разделителям
+  var allBlocks = md.split(/\n---\n/).filter(function(b){ return b.trim().length>30; });
+  // Пропускаем первый блок если он является заголовком файла (не содержит номера публикации)
+  var articles = allBlocks.filter(function(b){ return b.match(/Публикация\s*[№#№]?\s*\d|^#+\s*«|^#+\s*Заголовок/im) || allBlocks.indexOf(b) > 0; });
+  if(articles.length === allBlocks.length && articles[0] && !articles[0].match(/Публикация/i)){
+    articles = articles.slice(1);
+  }
+  var html = '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:16px">'+label+' — '+articles.length+' публикаций</div>';
+  articles.forEach(function(art, i){
+    var lines = art.split('\n');
+    var title = '';
+    for(var j=0;j<Math.min(8,lines.length);j++){
+      var l = lines[j].replace(/^#+\s*/,'').replace(/^\*\*([^*]+)\*\*:?\s*/,'').trim();
+      if(l && l.length>5 && !l.match(/^Публикация/i) && !l.match(/^Площадка/i)){ title=l; break; }
+    }
+    html += '<div class="pcpy-pub-card" style="margin-bottom:14px">'
+      +'<div style="font-size:10px;color:var(--muted);margin-bottom:6px">Публикация '+(i+1)+'</div>'
+      +(title?'<div class="pcpy-pub-title" style="margin-bottom:8px">'+escHtml(title)+'</div>':'')
+      +'<div class="pcpy-pub-body" style="max-height:300px;overflow:hidden;position:relative">'+pcpyMd(art)
+      +'<div style="position:absolute;bottom:0;left:0;right:0;height:50px;background:linear-gradient(transparent,var(--card))"></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;margin-top:8px">'
+      +'<button class="pcpy-copy-btn" style="background:#dc2626;color:#fff;border-color:#dc2626;font-weight:600" onclick="copyFullText(this,'+i+',\''+platform+'\',\''+copyCalSelected+'\')">Скопировать полностью</button>'
+      +'<button class="pcpy-copy-btn" style="background:var(--grad);color:#fff;border:none;font-weight:600" id="approve-'+platform+'-'+i+'" onclick="approvePost(this,'+i+',\''+platform+'\',\''+copyCalSelected+'\')">✓ Одобрено</button>'
+      +'<button class="pcpy-copy-btn" onclick="var c=this.parentElement.previousElementSibling;c.style.maxHeight=\'none\';c.lastElementChild.style.display=\'none\';this.style.display=\'none\'">Развернуть</button>'
+      +'</div>'
+      +'</div>';
+  });
+  body.innerHTML = html;
+  window._copyArticles = articles;
+}
+
+function approvePost(btn, idx, platform, dateStr){
+  var cache = _copyPlatformCache[dateStr];
+  if(!cache || !cache[platform]) return;
+  var allBlocks = cache[platform].split('\n---\n').filter(function(b){ return b.trim().length>30; });
+  var articles = allBlocks;
+  if(articles[0] && !articles[0].match(/Публикация/i)){
+    articles = articles.slice(1);
+  }
+  var text = (articles[idx]||'').trim();
+  if(!text){ alert('Текст публикации не найден'); return; }
+
+  var tok = getToken();
+  if(!tok){ alert('Добавьте GitHub токен'); return; }
+
+  btn.textContent = '⏳ Сохранение…';
+  btn.disabled = true;
+
+  // Путь: social/posting/ДД.ММ.ГГГГ/platform/post-N.md
+  // dateStr = "12.08.2026", platform = "dzen"
+  var postNum = idx + 1;
+  var path = 'social/posting/'+dateStr+'/'+platform+'/post-'+postNum+'.md';
+  var apiUrl = 'https://api.github.com/repos/'+PUB_REPO+'/contents/'+path.split('/').map(encodeURIComponent).join('/');
+
+  // Проверяем существует ли файл
+  var xhr1 = new XMLHttpRequest();
+  xhr1.open('GET', apiUrl+'?ref=main', true);
+  xhr1.setRequestHeader('Authorization','token '+tok);
+  xhr1.setRequestHeader('Accept','application/vnd.github.v3+json');
+  xhr1.onreadystatechange = function(){
+    if(xhr1.readyState!==4) return;
+    var sha = null;
+    try{ sha = JSON.parse(xhr1.responseText).sha||null; }catch(e){}
+
+    var md = '# Публикация '+postNum+' — '+platform+' — '+dateStr+'\n\n'+text;
+    var payload = {
+      message: 'approve: '+platform+' пост '+postNum+' за '+dateStr,
+      content: btoa(unescape(encodeURIComponent(md))),
+      branch: 'main'
+    };
+    if(sha) payload.sha = sha;
+
+    var xhr2 = new XMLHttpRequest();
+    xhr2.open('PUT', apiUrl, true);
+    xhr2.setRequestHeader('Authorization','token '+tok);
+    xhr2.setRequestHeader('Accept','application/vnd.github.v3+json');
+    xhr2.setRequestHeader('Content-Type','application/json');
+    xhr2.onreadystatechange = function(){
+      if(xhr2.readyState!==4) return;
+      if(xhr2.status===200||xhr2.status===201){
+        btn.textContent = '✅ Одобрено';
+        btn.style.background = '#059669';
+        btn.disabled = true;
+      } else {
+        btn.textContent = '✗ Ошибка';
+        btn.disabled = false;
+        btn.style.background = '#dc2626';
+        try{ console.error(JSON.parse(xhr2.responseText).message); }catch(e){}
+      }
+    };
+    xhr2.send(JSON.stringify(payload));
+  };
+  xhr1.send();
+}
+
+function copyFullText(btn, idx, platform, dateStr){
+  var cache = _copyPlatformCache[dateStr];
+  if(!cache || !cache[platform]) return;
+  var allBlocks = cache[platform].split('\n---\n').filter(function(b){ return b.trim().length>30; });
+  // Применяем тот же фильтр что при рендере
+  var articles = allBlocks;
+  if(articles[0] && !articles[0].match(/Публикация/i)){
+    articles = articles.slice(1);
+  }
+  var text = (articles[idx]||'').trim();
+  // Конвертируем markdown в чистый текст для публикации
+  text = text
+    .replace(/^#{1,6}\s+/gm, '')           // убираем # заголовки
+    .replace(/\*\*([^*]+)\*\*/g, '$1')    // **жирный** → жирный
+    .replace(/\*([^*]+)\*/g, '$1')          // *курсив* → курсив
+    .replace(/_([^_]+)_/g, '$1')             // _курсив_ → курсив
+    .replace(/^[-*]\s+/gm, '• ')            // - список → • список
+    .replace(/^\d+\.\s+/gm, function(m){ return m; }) // нумерованные — оставляем
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 $2')   // [текст](ссылка) → текст ссылка
+    .replace(/`([^`]+)`/g, '$1')             // `код` → код
+    .replace(/\n{3,}/g, '\n\n')           // тройные переносы → двойные
+    .trim();
+  navigator.clipboard.writeText(text).then(function(){
+    var old = btn.textContent; btn.textContent='✓ Скопировано';
+    setTimeout(function(){ btn.textContent=old; }, 2000);
+  });
+}
+
+// Совместимость
+function loadCopyistCal(){ copyInitCal(); }
+function copyCalBranch(){}
+
+function pcpyParseStrategy(md){
+  // Парсим файл стратегии в структуру: шаги + публикации по площадкам
+  var result = { steps: {}, pubs: [] };
+
+  // Разбиваем на блоки по заголовкам ## ШАГ
+  var stepBlocks = {};
+  var stepPattern = /^#{1,3}\s*(ШАГ\s*\d[^\n]*)/im;
+  var parts = md.split(/\n(?=#{1,3}\s*(?:ШАГ|ВОПРОСЫ|ФОРМАТ))/i);
+
+  parts.forEach(function(part){
+    var title = (part.match(/^#{1,3}\s*(.+)/m)||['',''])[1].trim();
+    var body = part.replace(/^#{1,3}\s*.+\n/m,'').trim();
+    if(!title) return;
+    var lc = title.toLowerCase();
+    if(lc.match(/шаг\s*0/)) result.steps.step0 = { title: title, body: body };
+    else if(lc.match(/шаг\s*1/)) result.steps.step1 = { title: title, body: body };
+    else if(lc.match(/шаг\s*2/)) result.steps.step2 = { title: title, body: body };
+    else if(lc.match(/шаг\s*3/)) result.steps.step3 = { title: title, body: body };
+    else if(lc.match(/шаг\s*4/)) result.steps.step4 = { title: title, body: body };
+    else if(lc.match(/шаг\s*5/)) result.steps.step5 = { title: title, body: body };
+    else if(lc.match(/шаг\s*6/)) result.steps.step6 = { title: title, body: body };
+    else if(lc.match(/вопрос/)) result.steps.questions = { title: title, body: body };
+  });
+
+  // Парсим публикации из шага 4 или из общего контента
+  var pubSection = (result.steps.step4 && result.steps.step4.body) || md;
+  var blocks = pubSection.split(/\n(?=(?:(?:#{1,3}|\*\*)\s*)?Публикация\s*[№#]?\d)/i);
+  blocks.forEach(function(block){
+    if(!block.trim()) return;
+    var numM = block.match(/Публикация\s*[№#]?(\d+)/i);
+    if(!numM) return;
+    var num = numM[1];
+    var lines = block.split('\n');
+    var pub = { num:num, platform:'', format:'', title:'', lead:'', ugol:'', cta:'', body:'' };
+    var bodyLines = [];
+    var inBody = false;
+    lines.forEach(function(l){
+      var t = l.trim();
+      var lc = t.toLowerCase();
+      if(lc.match(/^площадка\s*:/)) { pub.platform = t.replace(/^площадка\s*:\s*/i,'').replace(/\*\*/g,'').trim(); return; }
+      if(lc.match(/^формат\s*:/)) { pub.format = t.replace(/^формат\s*:\s*/i,''); return; }
+      if(lc.match(/^заголовок\s*:/)) { pub.title = t.replace(/^заголовок\s*:\s*/i,''); return; }
+      if(lc.match(/^подзаголовок|^лид\s*:|^подзаголовок\/лид\s*:/)) { pub.lead = t.replace(/^[^:]+:\s*/,''); return; }
+      if(lc.match(/^угол\s*:/)) { pub.ugol = t.replace(/^угол\s*:\s*/i,''); return; }
+      if(lc.match(/^призыв\s*:/)) { pub.cta = t.replace(/^призыв[^:]*:\s*/i,''); return; }
+      if(lc.match(/^(структура|объём|данные|голос|связь|новость-основа|новость основа)\s*:/)) { return; }
+      if(pub.title && !inBody && t && !t.match(/^(Площадка|Формат|Угол|Заголовок|Подзаголовок|Лид|Структура|Призыв|Объём|Данные|Голос|Связь|Новость)\s*:/i)){
+        inBody = true;
+      }
+      if(inBody) bodyLines.push(l);
+    });
+    pub.body = bodyLines.join('\n').trim();
+    if(pub.platform || pub.title) result.pubs.push(pub);
+  });
+
+  return result;
+}
+
+function pcpyParsePubs(md){
+  return pcpyParseStrategy(md).pubs;
+}
+
+function pcpyDetectPlatform(str){
+  if(!str) return 'other';
+  var s = str.toLowerCase().trim();
+  for(var k in PCPY_PLATFORM_MAP){ if(s.indexOf(k)>=0) return PCPY_PLATFORM_MAP[k]; }
+  return 'other';
+}
+
+function pcpyMd(text){
+  if(!text) return '';
+  var lines = text.split('\n');
+  var out = [];
+  var cur = [];
+  var inTable = false;
+  var tableRows = [];
+
+  function flushPara(){
+    if(cur.length){ out.push('<p style="margin:0 0 8px 0">'+inlineFormat(cur.join(' '))+'</p>'); cur=[]; }
+  }
+
+  function flushTable(){
+    if(!tableRows.length) return;
+    // Фильтруем разделитель |---|
+    var rows = tableRows.filter(function(r){ return !r.replace(/[|\s\-:]/g,'').length === false && !r.match(/^[|\s\-:]+$/); });
+    if(!rows.length){ tableRows=[]; return; }
+    var html = '<div style="overflow-x:auto;margin:10px 0"><table class="an-journal-table" style="width:100%;border-collapse:collapse;font-size:12px">';
+    rows.forEach(function(row, ri){
+      var cells = row.split('|').map(function(c){ return c.trim(); }).filter(function(c,i,a){ return i>0 && i<a.length-1 || (i===0&&c) || (i===a.length-1&&c); });
+      // Убираем пустые крайние ячейки от split на |
+      if(row.startsWith('|')) cells = row.slice(1).split('|').map(function(c){ return c.trim(); });
+      if(cells[cells.length-1]==='') cells.pop();
+      var tag = ri===0 ? 'th' : 'td';
+      var style = ri===0 ? 'background:var(--soft);font-weight:700;' : '';
+      html += '<tr>'+cells.map(function(c){ return '<'+tag+' style="padding:6px 10px;border:1px solid var(--border);'+style+'">'+inlineFormat(c)+'</'+tag+'>'; }).join('')+'</tr>';
+    });
+    html += '</table></div>';
+    out.push(html);
+    tableRows = [];
+    inTable = false;
+  }
+
+  lines.forEach(function(l){
+    var t = l.trim();
+
+    // Таблица
+    if(t.startsWith('|')){
+      if(!inTable){ flushPara(); inTable=true; }
+      if(!t.match(/^[|\s\-:]+$/)) tableRows.push(t);
+      return;
+    }
+    if(inTable){ flushTable(); }
+
+    if(!t){ flushPara(); out.push('<div style="height:4px"></div>'); return; }
+
+    // Заголовки
+    if(t.match(/^#{1,3}\s/)){
+      flushPara();
+      var lvl = t.match(/^(#{1,3})/)[1].length;
+      var sz = lvl===1?'15px':lvl===2?'13px':'12px';
+      out.push('<p style="font-size:'+sz+';font-weight:700;color:var(--text);margin:12px 0 6px 0">'+inlineFormat(t.replace(/^#{1,3}\s+/,''))+'</p>');
+      return;
+    }
+
+    // Горизонтальный разделитель
+    if(t.match(/^-{3,}$/)){ flushPara(); out.push('<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">'); return; }
+
+    // Нумерованный список
+    if(t.match(/^\d+\.\s/)){
+      flushPara();
+      var num = t.match(/^(\d+)\.\s/)[1];
+      var txt = t.replace(/^\d+\.\s+/,'');
+      out.push('<p style="display:flex;gap:8px;margin:0 0 8px 0"><span style="flex-shrink:0;font-weight:700;color:var(--blue);min-width:18px">'+num+'.</span><span>'+inlineFormat(txt)+'</span></p>');
+      return;
+    }
+
+    // Маркированный список
+    if(t.match(/^[-•*]\s/)){
+      flushPara();
+      out.push('<p style="margin:0 0 6px 0;padding-left:14px;text-indent:-8px">• '+inlineFormat(t.replace(/^[-•*]\s+/,''))+'</p>');
+      return;
+    }
+
+    cur.push(t);
+  });
+  flushPara();
+  if(inTable) flushTable();
+  return out.join('');
+}
+
+function pcpySelectTab(btn, platform){
+  document.querySelectorAll('.pcpy-tab').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  pcpyCurrentTab = platform;
+  var body = document.getElementById('pcpy-body');
+  if(window._pcpyPanels && window._pcpyPanels[platform]){
+    body.innerHTML = window._pcpyPanels[platform];
+  }
+}
+
+function pcpyCopy(btn, idx){
+  var p = (window._pcpyPubs||[])[idx];
+  if(!p) return;
+  var text = (p.title ? p.title+'\n\n' : '') + (p.lead ? p.lead+'\n\n' : '') + p.body;
+  navigator.clipboard.writeText(text.trim()).then(function(){
+    var old = btn.textContent; btn.textContent = '✓ Скопировано';
+    setTimeout(function(){ btn.textContent = old; }, 2000);
+  });
+}
+
+function sendToPublicist(news){
+  var token = getToken();
+  if(!token){ alert('Добавьте GitHub токен в настройках'); return; }
+  if(!news || !news.title){ alert('Нет данных новости'); return; }
+
+  var btn = document.getElementById('pub-btn-news');
+  function setBtnState(state){
+    if(!btn) return;
+    var map = { loading:'\u23f3 Отправка…', ok:'\u2713 Отправлено', err:'\u2717 Ошибка' };
+    btn.textContent = map[state] || state;
+    btn.disabled = state === 'loading';
+    btn.style.color = state === 'ok' ? '#059669' : state === 'err' ? '#dc2626' : '#888';
+    if(state === 'ok') setTimeout(function(){ btn.textContent = '\u2192 Публицист'; btn.disabled = false; btn.style.color = '#059669'; }, 3000);
+  }
+  setBtnState('loading');
+
+  var now = new Date();
+  var day = now.getDay();
+  var diffMon = (day === 0) ? -6 : 1 - day;
+  var mon = new Date(now); mon.setDate(now.getDate() + diffMon);
+  var sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  function fmt(d){ return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear(); }
+  var weekFolder = fmt(mon)+'-'+fmt(sun);
+
+  var slug = news.title.toLowerCase()
+    .replace(/[а-яё]/g, function(c){ var m={'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'j','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'}; return m[c]||c; })
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').substring(0,60);
+  var ts = now.toISOString().slice(0,10);
+  var filename = ts+'-'+slug+'.md';
+
+  var md = [];
+  md.push('# '+news.title);
+  md.push('');
+  md.push('**Дата:** '+(news.time||'')+'  ');
+  md.push('**Тег:** '+(news.tag||'')+'  ');
+  if(news.source){ md.push('**Источник:** ['+(news.sourceLabel||news.source)+']('+news.source+')  '); }
+  md.push('');
+  md.push('---');
+  md.push('');
+  if(news.body){ md.push(news.body.trim()); md.push(''); }
+  if(news.neyruRec){ md.push('---'); md.push(''); md.push('## \uD83C\uDFAF Рекомендация для НЭЙРУ'); md.push(''); md.push(news.neyruRec.trim()); md.push(''); }
+  md.push('---');
+  md.push('*Отправлено в neuru-publish: '+new Date().toLocaleString('ru')+'*');
+  var mdText = md.join('\n');
+
+  var PUBLISH_REPO = 'Elenafromsochi/neuru-publish';
+  var path = 'social-news/'+weekFolder+'/'+filename;
+  var apiUrl = 'https://api.github.com/repos/'+PUBLISH_REPO+'/contents/'+path.split('/').map(encodeURIComponent).join('/');
+
+  var xhr1 = new XMLHttpRequest();
+  xhr1.open('GET', apiUrl+'?ref=main', true);
+  xhr1.setRequestHeader('Authorization','token '+token);
+  xhr1.setRequestHeader('Accept','application/vnd.github.v3+json');
+  xhr1.onreadystatechange = function(){
+    if(xhr1.readyState !== 4) return;
+    var sha = null;
+    try{ sha = JSON.parse(xhr1.responseText).sha||null; } catch(e){}
+    var payload = { message:'news: '+news.title.substring(0,80), content:btoa(unescape(encodeURIComponent(mdText))), branch:'main' };
+    if(sha) payload.sha = sha;
+    var xhr2 = new XMLHttpRequest();
+    xhr2.open('PUT', apiUrl, true);
+    xhr2.setRequestHeader('Authorization','token '+token);
+    xhr2.setRequestHeader('Accept','application/vnd.github.v3+json');
+    xhr2.setRequestHeader('Content-Type','application/json');
+    xhr2.onreadystatechange = function(){
+      if(xhr2.readyState !== 4) return;
+      if(xhr2.status===200||xhr2.status===201){ setBtnState('ok'); }
+      else {
+        setBtnState('err');
+        var errMsg = xhr2.status;
+        try{ errMsg = JSON.parse(xhr2.responseText).message; }catch(ex){}
+        console.error('GitHub error ('+xhr2.status+'):', errMsg);
+        alert('Ошибка GitHub ('+xhr2.status+'):\n'+errMsg+'\n\nПроверь:\n1. Репо neuru-publish существует\n2. В нём есть хотя бы один коммит (ветка main)\n3. Токен имеет права на запись (scope: repo)');
+      }
+    };
+    xhr2.send(JSON.stringify(payload));
+  };
+  xhr1.send();
+}
+
+function startInterview(){
+  if(!pubSelectedNews){ alert('Сначала выберите новость'); return; }
+  interviewHistory=[]; interviewAnswers=[]; interviewQuestionCount=0;
+  document.getElementById('interview-messages').innerHTML='';
+  var kb=loadKB();
+  var sys='Ты ИИ-интервьюер. Берёшь интервью у Вероники Войновой, основателя НЭЙРУ (ИИ-портье для отелей).'+(kb?'\n\nБаза знаний: '+kb:'')+'\n\nТема: '+pubSelectedNews.title+'\n\nЗадай 5 глубоких вопросов по одному.';
+  interviewHistory.push({role:'user',content:'Начни интервью.'});
+  callClaude(sys,interviewHistory,function(reply){ addMsg('ai',reply); interviewHistory.push({role:'assistant',content:reply}); interviewQuestionCount++; });
+}
+
+function sendInterviewAnswer(){
+  var inp=document.getElementById('interview-input'); var val=inp?inp.value.trim():''; if(!val) return;
+  addMsg('user',val); interviewAnswers.push(val); interviewHistory.push({role:'user',content:val}); inp.value='';
+  var kb=loadKB();
+  var sys='Ты ИИ-интервьюер. Тема: '+(pubSelectedNews?pubSelectedNews.title:'')+(kb?'\n\nБаза знаний: '+kb:'')+'\n\nЗадай следующий вопрос (всего 5). Если получил 5 ответов — скажи что интервью завершено.';
+  callClaude(sys,interviewHistory,function(reply){ addMsg('ai',reply); interviewHistory.push({role:'assistant',content:reply}); interviewQuestionCount++; if(interviewQuestionCount>=5){ var btn=document.getElementById('gen-articles-btn'); if(btn) btn.style.display='inline-block'; } });
+}
+
+function addMsg(role,text){ var msgs=document.getElementById('interview-messages'); if(!msgs) return; var div=document.createElement('div'); div.className=role==='ai'?'msg-ai':'msg-user'; div.textContent=text; msgs.appendChild(div); msgs.scrollTop=msgs.scrollHeight; }
+
+function generateArticles(){
+  if(!pubSelectedNews||interviewAnswers.length<3){ alert('Пройдите интервью (минимум 3 ответа)'); return; }
+  var kb=loadKB();
+  var prompt='На основе интервью с Вероникой Войновой напиши план 10 статей.\n\nНовость: '+pubSelectedNews.title+'\n\nОтветы:\n'+interviewAnswers.map(function(a,i){ return (i+1)+'. '+a; }).join('\n')+(kb?'\n\nБаза знаний:\n'+kb:'')+'\n\nДай список 10 тем с кратким описанием. Нумерованный список.';
+  addMsg('ai','Генерирую план 10 статей...');
+  callClaude('Ты контент-стратег.',[{role:'user',content:prompt}],function(reply){ var msgs=document.getElementById('interview-messages'); var last=msgs.lastChild; if(last) last.textContent=reply; showSec('pub-copy',null); });
+}
+
+function buildPubStrategy(){
+  if(!pubSelectedNews){ document.getElementById('pub-strategy-result').textContent='Выберите новость'; return; }
+  var kb=loadKB(); var el=document.getElementById('pub-strategy-result');
+  el.innerHTML='<div class="loading"><div class="spinner"></div>Строю стратегию...</div>';
+  var prompt='Построй контент-стратегию на 10 статей для блога Вероники Войновой (НЭЙРУ). Новость: '+pubSelectedNews.title+' '+(pubSelectedNews.body||'')+(kb?' База знаний: '+kb:'')+' Для каждой: 1. Заголовок 2. Платформа 3. Угол 4. Аудитория. Нумерованный список.';
+  callClaude('Ты контент-стратег B2B HotelTech.',[{role:'user',content:prompt}],function(reply){ el.innerHTML='<div class="strat-text">'+mdSimple(reply)+'</div>'; });
+}
+
+function writePubArticle(){
+  if(!pubSelectedNews){ alert('Сначала выберите новость'); return; }
+  var kb=loadKB(); var promptTemplate=document.getElementById('platform-prompt').value||PLATFORM_PROMPTS[currentPlatform]||'';
+  var newsText=pubSelectedNews.title+' '+(pubSelectedNews.body||'');
+  var prompt=promptTemplate.replace('{NEWS}',newsText).replace('{KB}',kb||'');
+  var card=document.getElementById('pub-article-card'); var textEl=document.getElementById('pub-article-text');
+  if(card) card.style.display='block';
+  if(textEl) textEl.innerHTML='<div class="loading"><div class="spinner"></div>Пишу статью...</div>';
+  callClaude('Ты профессиональный копирайтер.',[{role:'user',content:prompt}],function(reply){ if(textEl) textEl.innerHTML=mdSimple(reply); var imgEl=document.getElementById('pub-image-prompt'); if(imgEl) imgEl.textContent=IMAGE_PROMPT; });
+}
+
+function copyPubArticle(){ var t=document.getElementById('pub-article-text'); if(t) navigator.clipboard.writeText(t.innerText).then(function(){ alert('Скопировано!'); }); }
+function copyImagePrompt(){ var t=document.getElementById('pub-image-prompt'); if(t) navigator.clipboard.writeText(t.textContent).then(function(){ alert('Промпт скопирован!'); }); }
+
+function approvePubArticle(){
+  var title=document.getElementById('platform-title')?document.getElementById('platform-title').textContent:'';
+  var text=document.getElementById('pub-article-text')?document.getElementById('pub-article-text').innerText:'';
+  pubApprovedArticles.push({platform:currentPlatform,title:title,text:text,date:new Date().toLocaleDateString('ru')});
+  renderPubQueue(); showSec('pub-post',null);
+}
+
+function renderPubQueue(){
+  var el=document.getElementById('pub-queue'); if(!el) return;
+  if(!pubApprovedArticles.length){ el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Одобренные статьи появятся здесь</div>'; return; }
+  var icons={dzen:'📰',vk:'💙',tenchat:'🤝',vc:'🔷',mitt:'🏨',welcome:'🌟'};
+  el.innerHTML=pubApprovedArticles.map(function(a,i){
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border)"><span style="font-size:20px">'+(icons[a.platform]||'📄')+'</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+a.title+'</div><div style="font-size:11px;color:var(--muted)">'+a.date+'</div></div><button onclick="copyQueueItem('+i+')" style="background:none;border:1px solid var(--border);border-radius:7px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit">Скопировать</button></div>';
+  }).join('');
+}
+
+function copyQueueItem(i){ if(pubApprovedArticles[i]) navigator.clipboard.writeText(pubApprovedArticles[i].text).then(function(){ alert('Скопировано!'); }); }
+
+function callClaude(systemPrompt,messages,callback){
+  var payload={model:'claude-sonnet-4-6',max_tokens:2000,system:systemPrompt,messages:messages};
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST',CLAUDE_PROXY,true);
+  xhr.setRequestHeader('Content-Type','application/json');
+  xhr.onload=function(){ try{ var json=JSON.parse(xhr.responseText); var text=json.content&&json.content[0]?json.content[0].text:'Ошибка ответа'; callback(text); } catch(e){ callback('Ошибка: '+xhr.responseText.substring(0,100)); } };
+  xhr.onerror=function(){ callback('Ошибка сети — проверь прокси: '+CLAUDE_PROXY); };
+  xhr.send(JSON.stringify(payload));
+}
+
+var MON_GEN=['','\u044f\u043d\u0432\u0430\u0440\u044f','\u0444\u0435\u0432\u0440\u0430\u043b\u044f','\u043c\u0430\u0440\u0442\u0430','\u0430\u043f\u0440\u0435\u043b\u044f','\u043c\u0430\u044f','\u0438\u044e\u043d\u044f','\u0438\u044e\u043b\u044f','\u0430\u0432\u0433\u0443\u0441\u0442\u0430','\u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044f','\u043e\u043a\u0442\u044f\u0431\u0440\u044f','\u043d\u043e\u044f\u0431\u0440\u044f','\u0434\u0435\u043a\u0430\u0431\u0440\u044f'];
+var M1=CM===1?12:CM-1, Y1=CM===1?CY-1:CY, M2=CM, Y2=CY;
+
+function daysInMonth(y,m){ return new Date(y,m,0).getDate(); }
+function firstWD(y,m){ return (new Date(y,m-1,1).getDay()+6)%7; }
+
+var calData={
+  prev:{label:MON_NOM[M1]+' '+Y1,year:Y1,monthInt:M1,monthNum:String(M1).padStart(2,'0'),days:daysInMonth(Y1,M1),prevDays:firstWD(Y1,M1),hasDays:[]},
+  cur: {label:MON_NOM[M2]+' '+Y2,year:Y2,monthInt:M2,monthNum:String(M2).padStart(2,'0'),days:daysInMonth(Y2,M2),prevDays:firstWD(Y2,M2),hasDays:[]}
+};
+var curMon='cur';
+
+function buildCal(mon){
+  var d=calData[mon];
+  document.getElementById('cal-month').textContent=d.label;
+  var grid=document.getElementById('cal-grid');
+  grid.innerHTML='';
+  ['\u041f\u043d','\u0412\u0442','\u0421\u0440','\u0427\u0442','\u041f\u0442','\u0421\u0431','\u0412\u0441'].forEach(function(n){
+    var dn=document.createElement('div'); dn.className='cal-dn'; dn.textContent=n; grid.appendChild(dn);
+  });
+  for(var i=0;i<d.prevDays;i++){ var emp=document.createElement('div'); emp.className='cal-d other'; grid.appendChild(emp); }
+  for(var day=1;day<=d.days;day++){
+    var cell=document.createElement('div');
+    var cls='cal-d';
+    if(d.hasDays.indexOf(day)>=0) cls+=' has';
+    if(mon==='cur'&&day===CD) cls+=' today';
+    cell.className=cls; cell.textContent=day;
+    (function(dd,mm){ cell.addEventListener('click',function(){ selDay(this,dd,mm); }); })(day,mon);
+    grid.appendChild(cell);
+  }
+}
+
+function switchMon(mon,el){
+  document.querySelectorAll('.cal-tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active'); curMon=mon; buildCal(mon);
+  document.getElementById('news-panel').innerHTML='<div class="empty"><div class="empty-icon">📅</div><div>Выберите дату для просмотра новостей</div></div>';
+}
+
+var curNewsItems=[], curNewsDate='';
+
+function selDay(el,day,mon){
+  document.querySelectorAll('.cal-d.sel').forEach(function(d){ d.classList.remove('sel'); });
+  el.classList.add('sel');
+  var d=calData[mon];
+  var ds=d.year+'-'+d.monthNum+'-'+String(day).padStart(2,'0');
+  document.getElementById('news-panel').innerHTML='<div class="loading"><div class="spinner"></div>Загрузка из репозитория…</div>';
+  loadNews(day,mon,ds).then(function(parsed){ renderNewsList(day,mon,ds,parsed); });
+}
+
+function loadNews(day,mon,ds){
+  if(!getToken()) return Promise.resolve(null);
+  if(ghCache[ds]!==undefined) return Promise.resolve(ghCache[ds]);
+  return ghFetch('research/'+ds+'.md').then(function(md){
+    var parsed=parseMdNews(md);
+    ghCache[ds]=parsed;
+    var d=calData[mon];
+    if(d.hasDays.indexOf(day)<0){
+      d.hasDays.push(day); buildCal(mon);
+      document.querySelectorAll('.cal-d').forEach(function(c){ if(parseInt(c.textContent)===day&&!c.classList.contains('other')) c.classList.add('sel'); });
+    }
+    if(parsed.news) NEWS[ds]=parsed.news;
+    return parsed;
+  }).catch(function(){ return null; });
+}
+
+function parseMdNews(md){
+  var SPECIAL={context:/^сезонный контекст/i,idea:/^идея недели/i,questions:/^вопрос/i};
+  var TAG_MAP={'\u0418\u0418':'tag-ai','\u041e\u0442\u0440\u0430\u0441\u043b\u044c':'tag-hotel','\u0420\u044b\u043d\u043e\u043a':'tag-market'};
+  function guessTag(t){ t=t.toLowerCase(); if(/\bии\b|\bai\b|нейросет|автоматизац|голосов/.test(t)) return '\u0418\u0418'; if(/отел|гостиниц|глэмпинг|бронир|курорт/.test(t)) return '\u041e\u0442\u0440\u0430\u0441\u043b\u044c'; return '\u0420\u044b\u043d\u043e\u043a'; }
+  function getUrl(t){ var m=t.match(/https?:\/\/[^\s)\]]+/); return m?m[0].replace(/[.,;)\]]+$/,''):'#'; }
+  function getLabel(u){ try{ return new URL(u).hostname.replace('www.',''); }catch(e){ return '\u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a'; } }
+  function getAngle(t){
+    var m1=t.match(/Угол\s*:\s*(.*?)\s*Сила\s*:/is);
+    if(m1) return m1[1].replace(/^[«"]+|[»"]+$/g,'').trim();
+    var m2=t.match(/Угол\s*:\s*(.+)$/is);
+    if(m2) return m2[1].replace(/^[«"]+|[»"'.]+$/g,'').trim();
+    return '';
+  }
+  function cleanBody(t){ return t.replace(/Ссылка\s*:\s*https?:\/\/\S+/gi,'').replace(/\s{2,}/g,' ').trim(); }
+  var news=[], special={context:'',idea:'',questions:''};
+  var lines=md.split('\n'), curTitle='', curLines=[];
+  function flush(){
+    if(!curTitle) return;
+    var bodyRaw=curLines.join(' ').trim();
+    for(var k in SPECIAL){ if(SPECIAL[k].test(curTitle)){ special[k]=bodyRaw; curTitle=''; curLines=[]; return; } }
+    var tag=guessTag(curTitle+' '+bodyRaw);
+    news.push({tag:tag,tagClass:TAG_MAP[tag]||'tag-market',time:'08:00',title:curTitle,body:cleanBody(bodyRaw),source:getUrl(bodyRaw),sourceLabel:getLabel(getUrl(bodyRaw)),neyruRec:getAngle(bodyRaw)});
+    curTitle=''; curLines=[];
+  }
+  lines.forEach(function(l){
+    var h=l.match(/^#{2,3}\s+(?:\d+\.\s*)?(.+)/);
+    if(h){ var c=h[1].trim(); if(/^(топ|дайджест|оглавлен|вывод|итог)/i.test(c)) return; flush(); curTitle=c; }
+    else if(curTitle&&l.trim()) curLines.push(l.trim());
+  });
+  flush();
+  return {news:news,special:special};
+}
+
+function renderNewsList(day,mon,ds,parsed){
+  var d=calData[mon], ml=MON_GEN[d.monthInt];
+  var panel=document.getElementById('news-panel');
+  var items=parsed?parsed.news:[], special=parsed?parsed.special:{};
+  curNewsItems=items; curNewsDate=ds;
+  var ghUrl='https://github.com/Elenafromsochi/neuru-email/blob/main/research/'+ds+'.md';
+  var hdr='<div class="np-date">'+day+' '+ml+' '+d.year+'</div>'
+    +'<div class="np-sub"><span>'+items.length+' \u043d\u043e\u0432\u043e\u0441\u0442'+(items.length===1?'\u044c':items.length<5?'\u0438':'\u0435\u0439')+' &middot;</span> <a href="'+ghUrl+'" target="_blank">research/'+ds+'.md</a></div>';
+  if(!parsed){ panel.innerHTML=hdr+'<div class="empty"><div class="empty-icon">🔑</div><div>\u0414\u043e\u0431\u0430\u0432\u044c\u0442\u0435 GitHub \u0442\u043e\u043a\u0435\u043d \u0432 \u043b\u0435\u0432\u043e\u043c \u043c\u0435\u043d\u044e</div></div>'; return; }
+  if(!items.length&&!special.context&&!special.idea&&!special.questions){ panel.innerHTML=hdr+'<div class="empty"><div class="empty-icon">📭</div><div>\u041d\u0435\u0442 \u043d\u043e\u0432\u043e\u0441\u0442\u0435\u0439.</div></div>'; return; }
+  var rows=items.map(function(n,i){ return '<div class="hl-row" id="hl-'+i+'" onclick="openNews('+i+')"><div class="hl-tag '+n.tagClass+'">'+n.tag+'</div><div class="hl-title">'+n.title+'</div><div class="hl-time">'+n.time+'</div></div>'; }).join('');
+  var spParts=[];
+  [{key:'context',lbl:'🗓 Сезонный контекст недели'},{key:'idea',lbl:'💡 Идея недели'},{key:'questions',lbl:'❓ Вопросы'}].forEach(function(s){ if(special[s.key]) spParts.push('<div class="sp-block"><div class="sp-block-title">'+s.lbl+'</div><div class="sp-block-body">'+mdToHtml(special[s.key])+'</div></div>'); });
+  panel.innerHTML=hdr+rows+'<div id="news-inline"></div>'+(spParts.length?'<div class="sp-blocks">'+spParts.join('')+'</div>':'');
+}
+
+function openNews(idx){
+  window._openNewsIdx=idx;
+  var n=curNewsItems[idx]; if(!n) return;
+  document.querySelectorAll('.hl-row').forEach(function(r){ r.classList.remove('sel'); });
+  var row=document.getElementById('hl-'+idx); if(row) row.classList.add('sel');
+  var prev=document.getElementById('news-inline-card'); if(prev) prev.remove();
+  var card=document.createElement('div'); card.id='news-inline-card'; card.className='news-card';
+  var newsText='# '+n.title+'\n\n'+n.body+(n.neyruRec?'\n\n## Рекомендация для НЭЙРУ\n'+n.neyruRec:'');
+    window._newsCardText = newsText;
+  card.innerHTML='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px"><div><span class="hl-tag '+n.tagClass+'" style="display:inline-flex;margin-bottom:7px">'+n.tag+'</span><div class="nc-title">'+n.title+'</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button id="news-copy-btn" title="Скопировать новость" style="width:28px;height:28px;border-radius:7px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:all .15s;font-family:inherit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button><button class="nc-close" onclick="closeNews()">&#10005;</button></div></div><div class="nc-body">'+mdToHtml(n.body)+'</div>';
+  if(n.neyruRec){
+    var rd=document.createElement('div'); rd.className='nc-rec';
+    rd.innerHTML='<div class="nc-rec-lbl">🎯 Рекомендация для НЭЙРУ</div>';
+    var rt=document.createElement('div'); rt.className='nc-rec-txt'; rt.textContent=n.neyruRec;
+    rd.appendChild(rt); card.appendChild(rd);
+  }
+  var md=document.createElement('div'); md.className='nc-meta';
+  md.innerHTML='<a class="nc-src" href="'+n.source+'" target="_blank"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'+n.sourceLabel+'</a>'
+    +'<div style="display:flex;gap:7px"><button onclick="sendToInterview(curNewsItems[window._openNewsIdx])" style="background:var(--soft);border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;color:var(--blue);font-family:inherit">→ Интервьюер</button><button onclick="sendToStrategy(curNewsItems[window._openNewsIdx])" style="background:var(--soft);border:1px solid var(--border);border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;color:var(--violet);font-family:inherit">→ ИИ-Стратег</button></div>'
+    +'<span class="nc-ts">'+n.time+' · '+curNewsDate+'</span>';
+  card.appendChild(md);
+  if(row&&row.parentNode){ row.insertAdjacentElement('afterend',card); }
+  // attach listener AFTER card is in DOM
+  var cpBtn=document.getElementById('news-copy-btn');
+  if(cpBtn){
+    cpBtn.addEventListener('click',function(){ copyNewsCard(); });
+    cpBtn.addEventListener('mouseover',function(){ this.style.color='var(--blue)'; this.style.borderColor='var(--blue)'; });
+    cpBtn.addEventListener('mouseout',function(){ this.style.color='var(--muted)'; this.style.borderColor='var(--border)'; });
+  }
+  setTimeout(function(){ card.scrollIntoView({behavior:'smooth',block:'nearest'}); },50);
+}
+
+function closeNews(){ document.querySelectorAll('.hl-row').forEach(function(r){ r.classList.remove('sel'); }); var c=document.getElementById('news-inline-card'); if(c) c.remove(); }
+function copyNewsCard(){
+  var txt = window._newsCardText||'';
+  if(!txt) return;
+  var btn = document.getElementById('news-copy-btn');
+  function flash(ok){
+    if(btn){
+      btn.style.color = ok ? 'var(--blue)' : '#e55';
+      setTimeout(function(){ btn.style.color='var(--muted)'; }, 1800);
+    }
+  }
+  // Safari на file:// не поддерживает clipboard API — используем execCommand
+  var ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;border:none;outline:none';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch(e){ ok=false; }
+  document.body.removeChild(ta);
+  flash(ok);
+}
+
+var weekOffset=0;
+function fmtDate(d){ return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear(); }
+function getWeekStart(off){ var n=new Date(),day=n.getDay()||7,mon=new Date(n); mon.setDate(n.getDate()-day+1+(off*7)); mon.setHours(0,0,0,0); return mon; }
+function getWeekNum(d){ var dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7)); var y0=new Date(Date.UTC(dt.getUTCFullYear(),0,1)); return Math.ceil((((dt-y0)/86400000)+1)/7); }
+function weekFilename(off){ var mon=getWeekStart(off),sun=new Date(mon); sun.setDate(mon.getDate()+6); return 'week-'+fmtDate(mon)+'-'+fmtDate(sun)+'.md'; }
+
+function updateSlider(){
+  var mon=getWeekStart(weekOffset),sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  document.getElementById('ws-num').textContent=getWeekNum(mon);
+  document.getElementById('ws-dates').textContent=fmtDate(mon)+' — '+fmtDate(sun);
+  loadStrategy();
+}
+
+function slideWeek(dir){ weekOffset+=dir; updateSlider(); }
+
+function switchStrat(el,tab){
+  document.querySelectorAll('.strat-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.strat-panel').forEach(function(p){ p.classList.remove('active'); });
+  el.classList.add('active'); document.getElementById('sp-'+tab).classList.add('active');
+}
+
+function loadStrategy(){
+  var fn=weekFilename(weekOffset);
+  var ghUrl='https://github.com/Elenafromsochi/neuru-email/blob/main/strategy/'+fn;
+  ['analytics','newsmap','leadmag','questions'].forEach(function(p){ var el=document.getElementById('sp-'+p); if(el){ var c=el.querySelector('.strat-content'); if(c) c.innerHTML='<div class="loading"><div class="spinner"></div>Загрузка…</div>'; } });
+  ['tue','thu'].forEach(function(d){ var el=document.getElementById('letters-'+d); if(el) el.innerHTML='<div class="loading" style="padding:24px"><div class="spinner"></div>Загрузка…</div>'; });
+  if(!getToken()){ setStratContent('analytics','<p>Добавьте GitHub токен в левом меню.</p>',ghUrl,fn); return; }
+  ghFetch('strategy/'+fn).then(function(md){ parseStratFile(md,ghUrl,fn); }).catch(function(){
+    var msg='<p style="color:var(--muted);font-size:13px">📂 Файл <code>strategy/'+fn+'</code> не найден в репозитории.</p>';
+    setStratContent('analytics',msg,ghUrl,fn);
+    setStratContent('leadmag',msg,ghUrl,fn);
+    setStratContent('questions',msg,ghUrl,fn);
+    ['tue','thu'].forEach(function(d){ var el=document.getElementById('letters-'+d); if(el) el.innerHTML='<div style="padding:24px;color:var(--muted);font-size:13px">📂 Файл <code>strategy/'+fn+'</code> не найден в репозитории.</div>'; });
+  });
+}
+
+function parseStratFile(md,ghUrl,fn){
+  var sections={}, curKey=null, curLines=[];
+  function flush(){ if(curKey) sections[curKey.toLowerCase()]=curLines.join('\n').trim(); curLines=[]; }
+  md.split('\n').forEach(function(l){ if(l.startsWith('## ')){ flush(); curKey=l.replace('## ','').trim(); } else curLines.push(l); });
+  flush();
+  function find(){
+    var keys=Array.prototype.slice.call(arguments);
+    for(var k in sections){ for(var i=0;i<keys.length;i++){ if(k.indexOf(keys[i].toLowerCase())>=0) return sections[k]; } }
+    return null;
+  }
+  var status=find('статус цепочек','статус');
+  var manifest=find('манифест недели','манифест');
+  var analytics=find('опора на аналитику','аналитик','опора');
+  var analyticsHtml='';
+  var hr='<hr style="margin:20px 0;border:none;border-top:1px solid var(--border)">';
+  if(status) analyticsHtml+='<p style="margin:0 0 8px;font-size:13px;font-weight:700">Статус цепочек</p>'+mdSimple(cleanMd(status));
+  if(manifest) analyticsHtml+=(analyticsHtml?hr:'')+'<p style="margin:0 0 8px;font-size:13px;font-weight:700">Манифест недели</p>'+mdSimple(cleanMd(manifest));
+  if(analytics) analyticsHtml+=(analyticsHtml?hr:'')+'<p style="margin:0 0 8px;font-size:13px;font-weight:700">Опора на аналитику</p>'+mdSimple(cleanMd(analytics));
+  if(!analyticsHtml) analyticsHtml='<p>Раздел не найден.</p>';
+  setStratContent('analytics',analyticsHtml,ghUrl,fn);
+  var leadmag=find('лид-магнит','созданные');
+  var lmEl=document.getElementById('sp-leadmag');
+  if(lmEl){ var lmC=lmEl.querySelector('.strat-content'); if(lmC) lmC.innerHTML='<div class="strat-text">'+(leadmag?mdSimple(cleanMd(leadmag)):'<p>Раздел не найден.</p>')+'</div><a class="file-badge" href="'+ghUrl+'" target="_blank">strategy/'+fn+'</a>'; }
+  var questions=find('вопросы к человеку','вопрос');
+  var qEl=document.getElementById('sp-questions');
+  if(qEl){ var qC=qEl.querySelector('.strat-content'); if(qC) qC.innerHTML='<div style="font-size:13px;font-weight:700;margin-bottom:14px">Вопросы человеку</div><div class="strat-text">'+(questions?mdSimple(cleanMd(questions)):'<p>Раздел не найден.</p>')+'</div><a class="file-badge" href="'+ghUrl+'" target="_blank">strategy/'+fn+'</a>'; }
+  var newsmap=find('карта новостей','карта');
+  var nmEl=document.getElementById('sp-newsmap');
+  if(nmEl){ var nmC=nmEl.querySelector('.strat-content'); if(nmC) nmC.innerHTML='<div class="strat-text">'+(newsmap?mdSimple(cleanMd(newsmap)):'<p>Раздел не найден.</p>')+'</div><a class="file-badge" href="'+ghUrl+'" target="_blank">strategy/'+fn+'</a>'; }
+  fillLetters(md,'tue',find('вторник'),ghUrl,fn);
+  fillLetters(md,'thu',find('четверг'),ghUrl,fn);
+}
+
+function setStratContent(panel,html,ghUrl,fn){ var el=document.getElementById('sp-'+panel); if(!el) return; var c=el.querySelector('.strat-content'); if(c) c.innerHTML='<div class="strat-text">'+html+'</div><a class="file-badge" href="'+ghUrl+'" target="_blank">strategy/'+fn+'</a>'; }
+
+function fillLetters(fullMd,day,sectionText,ghUrl,fn){
+  var el=document.getElementById('letters-'+day); if(!el) return;
+  if(!sectionText){ el.innerHTML='<div style="padding:20px;color:var(--muted)">Раздел не найден.</div>'; return; }
+  var subs={}, curSub=null, curLines=[];
+  function flushSub(){ if(curSub) subs[curSub.toLowerCase()]=curLines.join('\n').trim(); curLines=[]; }
+  sectionText.split('\n').forEach(function(l){ if(l.match(/^#{2,3}\s/)){ flushSub(); curSub=l.replace(/^#+\s/,'').trim(); } else curLines.push(l); });
+  flushSub();
+  var cityMap=[{seg:'msk',keys:['москва','moscow','мск'],label:'🏙 Москва'},{seg:'spb',keys:['спб','петербург','spb','питер','санкт'],label:'🌉 Санкт-Петербург'},{seg:'reg',keys:['регион','region','рег'],label:'🏔 Регионы'}];
+  var html='';
+  cityMap.forEach(function(city){
+    var found=null;
+    for(var k in subs){ for(var i=0;i<city.keys.length;i++){ if(k.indexOf(city.keys[i])>=0){ found=subs[k]; break; } } if(found) break; }
+    var cleaned=found?cleanMd(found):null;
+    html+='<div class="strat-letter"><div class="strat-letter-city">'+city.label+'</div><div class="strat-text">'+(cleaned?mdSimple(cleaned):'<p style="color:var(--muted)">Раздел не найден.</p>')+'</div><a class="file-badge" href="'+ghUrl+'" target="_blank">strategy/'+fn+'</a></div>';
+  });
+  el.innerHTML=html;
+}
+
+var emailsData={
+  tue:{
+    msk:{subj:'Тема: Московские отели теряют \u20bd2,4 млн в год на ОТА. Решение есть',body:'Добрый день!\n\nПока вы читаете это письмо, Ostrovok списывает очередные 18–22% с каждого бронирования.\n\nНЭЙРУ — ИИ-портье для московских отелей. +31% прямых бронирований за первые 3 месяца.\n\n→ Записаться на 20-минутное демо\n\nКоманда НЭЙРУ'},
+    spb:{subj:'Тема: Гость нашёл вас на Суточно.ру. Вы заплатили 22%. Это нормально?',body:'Добрый день!\n\nПетербург — город, где гости возвращаются. Они хотят бронировать напрямую.\n\nНЭЙРУ меняет это: ИИ-портье принимает звонки круглосуточно.\n\n→ Посмотреть кейс и записаться на демо\n\nКоманда НЭЙРУ'},
+    reg:{subj:'Тема: Ваш отель в регионе. Сколько вы уже отдали ОТА в 2026?',body:'Добрый день!\n\nВозьмите выручку за полугодие. Умножьте на 0.20. Это деньги, которые ушли агрегаторам.\n\nНЭЙРУ — ИИ-портье, который работает вместо агрегаторов.\n\n→ Узнать об условиях для регионов\n\nКоманда НЭЙРУ'}
+  },
+  thu:{
+    msk:{subj:'Тема: Пропущенный звонок = потерянный гость. Считали?',body:'Добрый день!\n\nСредний московский отель пропускает 34 звонка в неделю.\n\nНЭЙРУ не пропускает ни одного. Отвечает через 2 секунды.\n\n→ Прослушать демо-звонок\n\nКоманда НЭЙРУ'},
+    spb:{subj:'Тема: Высокий сезон в Петербурге. Ваш ресепшн справляется?',body:'Добрый день!\n\nОсенний сезон в Петербурге — не менее загруженный.\n\nНЭЙРУ берёт на себя первичную обработку входящих.\n\n→ Оставить заявку на подключение\n\nКоманда НЭЙРУ'},
+    reg:{subj:'Тема: Глэмпинг, загородный клуб, база отдыха — ИИ уже здесь',body:'Добрый день!\n\nЗагородные объекты: пропущенные звонки, ночные запросы, вопросы по трансферу.\n\nНЭЙРУ адаптируется под любой формат.\n\n→ Подойдёт ли НЭЙРУ для моего объекта?\n\nКоманда НЭЙРУ'}
+  }
+};
+var imgRecs={
+  tue:[{e:'🏙️',l:'Москва',d:'Современный отель, вид на ночную Москву.'},{e:'🌉',l:'Санкт-Петербург',d:'Белые ночи, набережная.'},{e:'🏔️',l:'Регионы',d:'Природа + уютный объект.'}],
+  thu:[{e:'📱',l:'Москва',d:'Телефон на стойке с входящим звонком.'},{e:'🍂',l:'Санкт-Петербург',d:'Осенний Петербург, деловой сезон.'},{e:'🌲',l:'Регионы',d:'Глэмпинг в лесу, вечер.'}]
+};
+
+// ══ КОПИРАЙТЕР ══
+var copyWeekOffset = 0;
+var copyCurrentDay = 'tue';
+var copyCache = {};
+
+function slideCopyWeek(dir){ copyWeekOffset += dir; updateCopySlider(); }
+
 
 document.addEventListener('DOMContentLoaded', function(){
   renderToken();
@@ -2571,7 +4635,7 @@ function renderAnMd(text){
     flushTable();
     if(b.type==='h'){ out.push('<p style="font-size:12px;font-weight:700;color:var(--text);margin:10px 0 4px 0">'+escHtml(b.text)+'</p>'); return; }
     if(b.type==='li'){ out.push('<p style="padding-left:14px;text-indent:-8px">\u2022 '+inlineFormat(b.text)+'</p>'); return; }
-    if(b.type==='oli'){ out.push('<p style="padding-left:20px;text-indent:-14px">'+inlineFormat(b.text)+'</p>'); return; }
+    if(b.type==='oli'){ var num=(b.text.match(/^(\d+)\.\s/)||['',''])[1]; var txt=b.text.replace(/^\d+\.\s+/,''); out.push('<p style="display:flex;gap:8px;margin:0 0 8px 0"><span style="flex-shrink:0;font-weight:700;color:var(--blue);min-width:20px">'+num+'.</span><span>'+inlineFormat(txt)+'</span></p>'); return; }
     out.push('<p>'+inlineFormat(b.text)+'</p>');
   });
   flushTable();
