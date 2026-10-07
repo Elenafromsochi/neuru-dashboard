@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Система вместо хаоса — 30 дней с Татьяной Шароновой</title>
+<meta name="description" content="30-дневная программа: соберите Авито, рекламу, контент и нейросети в одну систему продаж. Пройдите быстрый тест и узнайте свой Индекс системы.">
+<meta property="og:title" content="Система вместо хаоса">
+<meta property="og:description" content="Ваш бизнес — это система или набор отдельных действий? Узнайте свой Индекс системы за 2 минуты.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FAF6F0;
+  --bg2:#F2EBE1;
+  --card:#FFFFFF;
+  --ink:#1F2A2E;
+  --muted:#5E6A6E;
+  --line:#E4DACC;
+  --accent:#C4553A;
+  --accent-dark:#A2422B;
+  --accent-soft:#F6E1D8;
+  --teal:#2F6F6A;
+  --teal-soft:#DCEBE8;
+  --warn:#D99A2B;
+  --radius:18px;
+  --shadow:0 10px 30px rgba(31,42,46,.07);
+  --max:1120px;
+}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;font-size:17px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;display:block}
+a{color:inherit}
+h1,h2,h3{font-family:'Lora',Georgia,serif;font-weight:600;line-height:1.2;letter-spacing:-.01em}
+h1{font-size:clamp(2rem,4.6vw,3.4rem)}
+h2{font-size:clamp(1.65rem,3.2vw,2.5rem);margin-bottom:18px}
+h3{font-size:1.2rem}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 20px}
+section{padding:88px 0}
+.lead{font-size:1.12rem;color:var(--muted);max-width:720px}
+.eyebrow{display:inline-block;font-size:.8rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:15px 26px;border-radius:999px;font-weight:700;font-size:1rem;text-decoration:none;border:2px solid transparent;cursor:pointer;transition:transform .15s,background .2s,box-shadow .2s;font-family:inherit}
+.btn:hover{transform:translateY(-2px)}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 22px rgba(196,85,58,.28)}
+.btn-primary:hover{background:var(--accent-dark)}
+.btn-ghost{border-color:var(--ink);color:var(--ink);background:transparent}
+.btn-ghost:hover{background:var(--ink);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* header */
+header{position:sticky;top:0;z-index:50;background:rgba(250,246,240,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px}
+.logo{font-family:'Lora',serif;font-weight:600;font-size:1.15rem;text-decoration:none;white-space:nowrap}
+.logo span{color:var(--accent)}
+.nav-links{display:flex;gap:26px;list-style:none}
+.nav-links a{text-decoration:none;font-weight:600;font-size:.95rem;color:var(--muted)}
+.nav-links a:hover{color:var(--ink)}
+.nav .btn{padding:10px 20px;font-size:.92rem}
+
+/* hero */
+.hero{padding:72px 0 88px}
+.hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center}
+.hero h1{margin-bottom:22px}
+.hero p{font-size:1.12rem;color:var(--muted);margin-bottom:16px;max-width:600px}
+.hero p.accent{color:var(--ink);font-weight:600;border-left:3px solid var(--accent);padding-left:16px;margin:26px 0 32px}
+.hero-actions{display:flex;flex-wrap:wrap;gap:14px}
+.photo{position:relative;border-radius:28px;overflow:hidden;background:linear-gradient(160deg,var(--teal-soft),var(--accent-soft));aspect-ratio:4/5;box-shadow:var(--shadow)}
+.photo img{width:100%;height:100%;object-fit:cover}
+.photo .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Lora',serif;font-size:4rem;color:rgba(31,42,46,.25)}
+.photo.has-img .ph{display:none}
+.author-card{position:absolute;left:16px;right:16px;bottom:16px;background:rgba(255,255,255,.94);border-radius:14px;padding:14px 16px;font-size:.9rem;line-height:1.4}
+.author-card b{display:block;font-size:1rem}
+.author-card span{color:var(--muted)}
+
+/* pains */
+.pains{background:var(--bg2)}
+.pain-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:32px}
+.pain{background:var(--card);border-radius:var(--radius);padding:22px;font-weight:600;line-height:1.45;border:1px solid var(--line);position:relative;padding-top:46px}
+.pain::before{content:'';position:absolute;top:20px;left:22px;width:14px;height:14px;border-radius:50%;border:2px solid var(--accent)}
+
+/* method */
+.method-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:48px;align-items:center;margin-top:36px}
+.wheel-box{background:var(--card);border-radius:24px;padding:24px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.wheel-box svg{width:100%;height:auto;overflow:visible}
+.wheel-caption{font-size:.95rem;color:var(--muted);margin-top:12px;text-align:center}
+.wheel-caption b{color:var(--accent)}
+.blocks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.block{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.block h3{font-family:'Manrope',sans-serif;font-weight:800;font-size:1rem;margin-bottom:4px;display:flex;justify-content:space-between;gap:8px}
+.block p{font-size:.92rem;color:var(--muted);line-height:1.45}
+.weight{font-size:.75rem;font-weight:700;color:var(--teal);background:var(--teal-soft);border-radius:999px;padding:2px 9px;white-space:nowrap;align-self:flex-start}
+.block.heavy{border-color:var(--accent)}
+.block.heavy .weight{background:var(--accent-soft);color:var(--accent-dark)}
+
+/* test */
+.test{background:var(--ink);color:#F4EFE8}
+.test .lead{color:#BFC6C4}
+.test .eyebrow{color:#F0A58F}
+.quiz{background:#28363A;border-radius:24px;padding:36px;margin-top:36px;max-width:820px}
+.progress{height:6px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;margin-bottom:26px}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.q-meta{font-size:.85rem;color:#9FAAA8;margin-bottom:8px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.q-text{font-family:'Lora',serif;font-size:clamp(1.2rem,2.4vw,1.5rem);line-height:1.35;margin-bottom:26px}
+.options{display:grid;gap:10px}
+.opt{display:flex;align-items:center;gap:14px;text-align:left;width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.14);color:inherit;border-radius:14px;padding:14px 16px;font:inherit;font-size:.98rem;cursor:pointer;transition:border-color .15s,background .15s}
+.opt:hover{border-color:rgba(255,255,255,.4)}
+.opt.sel{border-color:var(--accent);background:rgba(196,85,58,.18)}
+.opt .n{flex:0 0 34px;height:34px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-weight:800}
+.opt.sel .n{background:var(--accent)}
+.quiz-nav{display:flex;justify-content:space-between;gap:12px;margin-top:26px}
+.quiz-nav .btn-ghost{border-color:rgba(255,255,255,.4);color:#F4EFE8}
+.quiz-nav .btn-ghost:hover{background:#F4EFE8;color:var(--ink)}
+
+.result{display:none}
+.result.show{display:grid;grid-template-columns:.95fr 1.05fr;gap:36px;align-items:center}
+.score{font-family:'Lora',serif;font-size:4.4rem;line-height:1;font-weight:600}
+.score small{font-size:1.4rem;color:#9FAAA8}
+.level{display:inline-block;margin:10px 0 16px;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.9rem}
+.result p{color:#D6DCDA;margin-bottom:12px}
+.weak-list{list-style:none;margin:16px 0 22px;display:grid;gap:8px}
+.weak-list li{background:rgba(255,255,255,.06);border-radius:12px;padding:10px 14px;font-size:.95rem;display:flex;justify-content:space-between;gap:12px}
+.weak-list b{color:#F0A58F}
+.result .wheel-svg text{fill:#D6DCDA}
+.result-actions{display:flex;flex-wrap:wrap;gap:12px}
+
+/* plan */
+.plan-grid{display:grid;grid-template-columns:.85fr 1.15fr;gap:48px;margin-top:36px;align-items:start}
+.outcomes{background:var(--card);border-radius:var(--radius);padding:28px;border:1px solid var(--line);position:sticky;top:90px}
+.outcomes h3{margin-bottom:16px}
+.outcomes ul{list-style:none;display:grid;gap:12px}
+.outcomes li{padding-left:30px;position:relative;font-weight:600}
+.outcomes li::before{content:'✓';position:absolute;left:0;top:0;width:20px;height:20px;border-radius:50%;background:var(--teal-soft);color:var(--teal);font-size:.78rem;display:flex;align-items:center;justify-content:center;margin-top:3px}
+.timeline{list-style:none;position:relative;padding-left:30px}
+.timeline::before{content:'';position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.timeline li{position:relative;padding:0 0 26px}
+.timeline li::before{content:'';position:absolute;left:-28px;top:6px;width:16px;height:16px;border-radius:50%;background:var(--bg);border:3px solid var(--accent)}
+.timeline li:last-child{padding-bottom:0}
+.timeline li:first-child::before,.timeline li:last-child::before{background:var(--accent)}
+.timeline .d{font-size:.82rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.timeline b{display:block;font-size:1.08rem}
+.timeline span{color:var(--muted)}
+
+/* program */
+.program{background:var(--bg2)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:32px 0 40px}
+.step{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid var(--line)}
+.step i{font-style:normal;font-family:'Lora',serif;font-size:1.6rem;color:var(--accent);display:block;line-height:1;margin-bottom:8px}
+.step b{display:block;margin-bottom:2px}
+.step span{color:var(--muted);font-size:.93rem}
+.acc{display:grid;gap:10px}
+details{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+summary{list-style:none;cursor:pointer;padding:20px 24px;display:flex;align-items:center;gap:16px;font-weight:700;font-size:1.08rem}
+summary::-webkit-details-marker{display:none}
+summary .days{margin-left:auto;font-size:.85rem;font-weight:700;color:var(--teal);background:var(--teal-soft);border-radius:999px;padding:4px 12px;white-space:nowrap}
+summary .num{flex:0 0 34px;height:34px;border-radius:50%;background:var(--accent-soft);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:800}
+summary::after{content:'+';font-size:1.5rem;font-weight:400;color:var(--muted);width:20px;text-align:center;transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+.det-body{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 28px;padding:4px 24px 24px 74px}
+.det-body h4{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
+.det-body p{font-size:.98rem}
+.det-body .done{grid-column:1/-1;background:var(--teal-soft);border-radius:12px;padding:12px 16px}
+.det-body .done h4{color:var(--teal)}
+.terms{margin-top:40px;background:#FFF8E9;border:1px solid #EFD9A8;border-radius:var(--radius);padding:26px 28px}
+.terms h3{margin-bottom:12px}
+.terms p{font-size:.95rem;color:#5B5242;margin-bottom:10px}
+.terms p:last-child{margin-bottom:0}
+
+/* audience */
+.aud-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px}
+.aud-card{border-radius:24px;padding:34px}
+.aud-card.a{background:var(--card);border:1px solid var(--line)}
+.aud-card.b{background:var(--teal);color:#fff}
+.aud-card.b h3{margin-bottom:12px}
+.aud-card.b p{opacity:.92}
+.aud-card .quote{margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,.25);font-family:'Lora',serif;font-style:italic;font-size:1.1rem}
+.aud-card .quote s{opacity:.6}
+
+/* about */
+.about-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center}
+.about-grid p{color:var(--muted);margin-bottom:16px;font-size:1.06rem}
+.about-grid p strong{color:var(--ink)}
+.about-photos{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.about-photos .photo{aspect-ratio:3/4}
+.about-photos .photo:nth-child(2){margin-top:40px}
+.about-photos .ph{font-size:2.6rem}
+
+/* cta */
+.cta{padding:0 0 88px}
+.cta-box{background:var(--accent);color:#fff;border-radius:32px;padding:64px 40px;text-align:center;position:relative;overflow:hidden}
+.cta-box::before,.cta-box::after{content:'';position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.18)}
+.cta-box::before{width:340px;height:340px;left:-120px;top:-140px}
+.cta-box::after{width:260px;height:260px;right:-80px;bottom:-120px}
+.cta-box h2{margin-bottom:14px}
+.cta-box p{max-width:620px;margin:0 auto 30px;font-size:1.1rem;opacity:.95}
+.cta-box .btn{background:#fff;color:var(--accent-dark);position:relative;z-index:1}
+.cta-box .btn:hover{background:var(--ink);color:#fff}
+
+footer{border-top:1px solid var(--line);padding:30px 0;font-size:.88rem;color:var(--muted)}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+/* reveal */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .6s,transform .6s}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+
+/* responsive */
+@media (max-width:960px){
+  .hero-grid,.method-grid,.plan-grid,.about-grid,.result.show{grid-template-columns:1fr}
+  .hero-grid .photo{max-width:420px}
+  .pain-grid{grid-template-columns:1fr 1fr}
+  .steps{grid-template-columns:1fr 1fr}
+  .outcomes{position:static}
+  .nav-links{display:none}
+}
+@media (max-width:640px){
+  body{font-size:16px}
+  section{padding:64px 0}
+  .wrap{padding:0 16px}
+  .hero{padding:44px 0 64px}
+  .pain-grid,.blocks,.steps,.aud-grid{grid-template-columns:1fr}
+  .quiz{padding:24px 18px}
+  .det-body{grid-template-columns:1fr;padding:0 18px 20px}
+  summary{padding:16px 18px;gap:12px;font-size:1rem;flex-wrap:wrap}
+  summary .days{margin-left:46px;order:3}
+  summary::after{margin-left:auto}
+  .cta-box{padding:48px 22px;border-radius:24px}
+  .aud-card{padding:26px}
+  .hero-actions .btn{width:100%}
+  .nav .btn{padding:9px 14px;font-size:.85rem}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a href="#top" class="logo">Система <span>вместо</span> хаоса</a>
+    <ul class="nav-links">
+      <li><a href="#metod">Метод</a></li>
+      <li><a href="#test">Тест</a></li>
+      <li><a href="#plan">30 дней</a></li>
+      <li><a href="#programma">Программа</a></li>
+    </ul>
+    <a href="#cta" class="btn btn-primary">Начать</a>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">30 дней · наставничество</span>
+      <h1>Ваш бизнес — это система или набор отдельных действий?</h1>
+      <p>Вы ведёте соцсети, размещаетесь на Авито, пробуете рекламу и осваиваете нейросети. Действий много, а стабильных продаж нет. Обычно проблема не в усилиях, а в том, что действия никак не связаны.</p>
+      <p class="accent">Возможно, вам не нужно делать больше. Нужно собрать в систему то, что вы уже делаете.</p>
+      <div class="hero-actions">
+        <a href="#test" class="btn btn-primary">Узнать свой Индекс системы</a>
+        <a href="#plan" class="btn btn-ghost">Как проходят 30 дней</a>
+      </div>
+    </div>
+    <div class="photo">
+      <img src="img/hero.jpg" alt="Татьяна Шаронова на набережной" onload="this.parentNode.classList.add('has-img')" onerror="this.remove()">
+      <div class="ph" aria-hidden="true">ТШ</div>
+      <div class="author-card">
+        <b>Татьяна Шаронова</b>
+        <span>Авито, реклама, контент и AI — в одну систему</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PAINS -->
+<section class="pains">
+  <div class="wrap">
+    <h2 class="reveal">Узнаёте себя?</h2>
+    <div class="pain-grid">
+      <div class="pain reveal">Много идей, но сложно выбрать главное</div>
+      <div class="pain reveal">Есть продукт, но нет стабильного потока клиентов</div>
+      <div class="pain reveal">Вы на нескольких площадках и не понимаете, какая нужна</div>
+      <div class="pain reveal">Контент выходит, а связи с продажами не видно</div>
+      <div class="pain reveal">Трудно коротко объяснить, почему выбирать именно вас</div>
+      <div class="pain reveal">Клиенты приходят случайно или по рекомендациям</div>
+      <div class="pain reveal">Нейросети используете эпизодически</div>
+      <div class="pain reveal">Бизнес держится лично на вас</div>
+    </div>
+  </div>
+</section>
+
+<!-- METHOD -->
+<section id="metod">
+  <div class="wrap">
+    <span class="eyebrow">Метод</span>
+    <h2>Диагностика из 8 блоков: где ломается система</h2>
+    <p class="lead">40 вопросов, оценка от 0 до 3. На выходе — Индекс системы от 0 до 100 и ваше личное колесо. Два блока весят вдвое больше: именно в них чаще всего теряются клиенты и деньги.</p>
+    <div class="method-grid">
+      <div class="wheel-box reveal">
+        <svg id="exampleWheel" class="wheel-svg" viewBox="-60 -20 520 440" role="img" aria-label="Пример колеса системы"></svg>
+        <p class="wheel-caption">Пример колеса: сильные «Я» и «Продукт», но провал на потоке и пути клиента. <b>Главный разрыв: поток → воронка.</b></p>
+      </div>
+      <div class="blocks" id="blocksList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- TEST -->
+<section id="test" class="test">
+  <div class="wrap">
+    <span class="eyebrow">Быстрый тест</span>
+    <h2>Быстрый тест: 8 вопросов вместо 40</h2>
+    <p class="lead">Отвечайте по тому, как бизнес работает последние 3 месяца, а не по тому, как вы планируете его выстроить. Это сокращённая версия, полная диагностика — в программе.</p>
+
+    <div class="quiz" id="quiz">
+      <div id="quizBody">
+        <div class="progress"><i id="progressBar"></i></div>
+        <div class="q-meta"><span id="qCounter"></span><span id="qBlock"></span></div>
+        <div class="q-text" id="qText"></div>
+        <div class="options" id="qOptions" role="radiogroup"></div>
+        <div class="quiz-nav">
+          <button class="btn btn-ghost" id="prevBtn" type="button">← Назад</button>
+          <button class="btn btn-primary" id="nextBtn" type="button" disabled>Далее →</button>
+        </div>
+      </div>
+
+      <div class="result" id="result" aria-live="polite">
+        <div>
+          <svg id="resultWheel" class="wheel-svg" viewBox="-60 -20 520 440" role="img" aria-label="Ваше колесо системы"></svg>
+        </div>
+        <div>
+          <div class="q-meta">Ваш Индекс системы</div>
+          <div class="score"><span id="scoreNum">0</span> <small>/ 100</small></div>
+          <span class="level" id="levelTag"></span>
+          <p id="levelText"></p>
+          <p><b>Самые слабые блоки:</b></p>
+          <ul class="weak-list" id="weakList"></ul>
+          <div class="result-actions">
+            <a href="#cta" class="btn btn-primary">Получить полную диагностику</a>
+            <button class="btn btn-ghost" id="restartBtn" type="button" style="border-color:rgba(255,255,255,.4);color:#F4EFE8">Пройти заново</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PLAN -->
+<section id="plan">
+  <div class="wrap">
+    <span class="eyebrow">30 дней</span>
+    <h2>Что вы сделаете за 30 дней</h2>
+    <p class="lead">Это не курс с десятками уроков. Мы смотрим на то, что уже есть, убираем лишнее, находим слабые места и соединяем работающее.</p>
+    <div class="plan-grid">
+      <div class="outcomes reveal">
+        <h3>На выходе у вас будет</h3>
+        <ul>
+          <li>Карта сильных сторон и роли в бизнесе</li>
+          <li>Портрет реальной аудитории</li>
+          <li>Позиционирование и оффер</li>
+          <li>Продуктовая матрица и главный продукт</li>
+          <li>Система привлечения и воронка</li>
+          <li>Карта процессов для AI и автоматизации</li>
+          <li>Дорожная карта на 90 дней</li>
+        </ul>
+      </div>
+      <ol class="timeline">
+        <li class="reveal"><span class="d">День 1</span><b>Диагностика</b><span>Индекс системы «до»</span></li>
+        <li class="reveal"><span class="d">Дни 2–6</span><b>Я и бизнес</b><span>Карта предпринимателя, 3 точки роста</span></li>
+        <li class="reveal"><span class="d">Дни 7–12</span><b>Клиент и позиционирование</b><span>Карта ЦА, формула и оффер</span></li>
+        <li class="reveal"><span class="d">Дни 13–15</span><b>Продукт</b><span>Продуктовая матрица</span></li>
+        <li class="reveal"><span class="d">Дни 16–20</span><b>Поток клиентов</b><span>1–2 канала и KPI</span></li>
+        <li class="reveal"><span class="d">Дни 21–25</span><b>Путь клиента</b><span>Вход → лендинг → бот → прогрев → заявка → продажа</span></li>
+        <li class="reveal"><span class="d">Дни 26–28</span><b>Система + AI</b><span>Что автоматизировать и делегировать</span></li>
+        <li class="reveal"><span class="d">Дни 29–30</span><b>Итог</b><span>Повторный Индекс и 3 приоритета на 90 дней</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- PROGRAM -->
+<section id="programma" class="program">
+  <div class="wrap">
+    <span class="eyebrow">Программа</span>
+    <h2>Программа по этапам</h2>
+    <p class="lead">Каждый этап заканчивается готовым материалом для вашего бизнеса и понятным признаком, что он сделан.</p>
+
+    <div class="steps">
+      <div class="step reveal"><i>1</i><b>Объясняю</b><span>коротко, без лишней теории</span></div>
+      <div class="step reveal"><i>2</i><b>Вы делаете</b><span>на материале своего бизнеса</span></div>
+      <div class="step reveal"><i>3</i><b>Разбираем</b><span>что получилось и где слабое место</span></div>
+      <div class="step reveal"><i>4</i><b>Фиксируете</b><span>готовый материал и идёте дальше</span></div>
+    </div>
+
+    <div class="acc" id="programList"></div>
+
+    <div class="terms">
+      <h3>Важно знать об условиях</h3>
+      <p>Это консультационно-практическая программа наставничества. Она не является образовательной программой в смысле Федерального закона № 273-ФЗ «Об образовании в Российской Федерации»: итоговой аттестации нет, документ об образовании или о квалификации не выдаётся.</p>
+      <p>Программу ведёт лично автор. Индекс системы — инструмент самооценки, а не экзамен.</p>
+      <p>Результат зависит от вашего бизнеса и ваших действий. Мы не гарантируем рост выручки или конкретное число клиентов.</p>
+    </div>
+  </div>
+</section>
+
+<!-- AUDIENCE -->
+<section>
+  <div class="wrap">
+    <h2>Для кого программа</h2>
+    <div class="aud-grid">
+      <div class="aud-card a reveal">
+        <p style="font-size:1.12rem">Для экспертов, предпринимателей, самозанятых и малого бизнеса, которые уже умеют работать и имеют продукт или услугу, но хотят перестать двигаться хаотично.</p>
+      </div>
+      <div class="aud-card b reveal">
+        <h3>Главная цель</h3>
+        <p>Не заставить вас работать больше, а собрать систему, в которой каждое действие имеет своё место и ведёт к понятному результату.</p>
+        <div class="quote">Вместо <s>«Что мне ещё попробовать?»</s> появляется «Я понимаю, что делаю, зачем и куда это ведёт клиента».</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section style="padding-top:0">
+  <div class="wrap about-grid">
+    <div>
+      <span class="eyebrow">Автор</span>
+      <h2>Кто за этим стоит</h2>
+      <p>Меня зовут <strong>Татьяна Шаронова</strong>. Я работаю с Авито, рекламой, контентом и нейросетями и помогаю экспертам и предпринимателям собрать эти разрозненные действия в понятную систему продаж.</p>
+      <p>Я заметила: проблема чаще не в количестве действий, а в том, что они никак не связаны. <strong>Технологии нужны не для того, чтобы работать ещё больше, а чтобы освободить время для жизни.</strong></p>
+    </div>
+    <div class="about-photos">
+      <div class="photo reveal">
+        <img src="img/meeting.jpg" alt="Татьяна Шаронова на встрече, на экране Авито" onload="this.parentNode.classList.add('has-img')" onerror="this.remove()">
+        <div class="ph" aria-hidden="true">ТШ</div>
+      </div>
+      <div class="photo reveal">
+        <img src="img/stage.jpg" alt="Татьяна Шаронова выступает на сцене" onload="this.parentNode.classList.add('has-img')" onerror="this.remove()">
+        <div class="ph" aria-hidden="true">ТШ</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta" class="cta">
+  <div class="wrap">
+    <div class="cta-box">
+      <h2>Посмотрите на своё колесо</h2>
+      <p>Напишите «СИСТЕМА» — пришлю полную диагностику из 40 вопросов. Через 30 дней пройдём её повторно и сравним результат.</p>
+      <a id="tgLink" href="https://t.me/your_username" class="btn" target="_blank" rel="noopener">Написать «СИСТЕМА»</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>«Система вместо хаоса» — 30-дневная система настройки бизнеса и маркетинга</span>
+    <span>Исполнитель: [ФИО, статус (ИП или самозанятый), ИНН/ОГРНИП]</span>
+  </div>
+</footer>
+
+<script>
+/* ===== НАСТРОЙКИ ===== */
+const TELEGRAM_USERNAME = 'your_username'; // ← замените на свой ник в Telegram (без @)
+
+/* ===== ДАННЫЕ ===== */
+const BLOCKS = [
+  { name: 'Я',                short: 'Я',          desc: 'Сильные стороны, роль, цели',          w: 10 },
+  { name: 'Бизнес',           short: 'Бизнес',     desc: 'Деньги, цифры, точки роста',           w: 10 },
+  { name: 'Клиент',           short: 'Клиент',     desc: 'Кому вы продаёте и с какой задачей',   w: 10 },
+  { name: 'Позиционирование', short: 'Позиц.',     desc: 'Понятно ли, почему выбирать вас',      w: 10 },
+  { name: 'Продукт',          short: 'Продукт',    desc: 'Что покупать и как продукты связаны',  w: 10 },
+  { name: 'Поток клиентов',   short: 'Поток',      desc: 'Откуда регулярно приходят новые люди', w: 20 },
+  { name: 'Путь клиента',     short: 'Путь',       desc: 'Что происходит от знакомства до покупки', w: 20 },
+  { name: 'Система + AI',     short: 'AI',         desc: 'Что автоматизировать и делегировать',  w: 10 }
+];
+
+const QUESTIONS = [
+  'Я понимаю свои сильные стороны и знаю, какие задачи в бизнесе должна делать именно я, а какие можно передать.',
+  'Я знаю выручку, расходы и прибыль за последние 3 месяца и понимаю, какие действия реально приносят деньги.',
+  'Я могу конкретно описать своего клиента: его задачу, возражения и где он ищет решение.',
+  'За 30 секунд я могу объяснить, кто я, какой результат даю и почему выбирать именно меня.',
+  'У меня есть один главный продукт и понятная лестница: бесплатный вход, недорогое предложение, основной продукт.',
+  'Новые клиенты приходят регулярно из 1–2 понятных каналов, и я считаю по ним показатели.',
+  'После первого знакомства у человека всегда есть понятный следующий шаг — вплоть до заявки и покупки.',
+  'Повторяющиеся задачи делегированы или автоматизированы, нейросети постоянно работают на реальных задачах.'
+];
+
+const SCALE = [
+  { v: 0, t: 'Нет, этого нет' },
+  { v: 1, t: 'Скорее нет — бывает эпизодически' },
+  { v: 2, t: 'Скорее да — но не всегда' },
+  { v: 3, t: 'Да, это работает стабильно' }
+];
+
+const ADVICE = {
+  'Я': 'Без ясной роли бизнес держится на вас лично — начните с разделения задач на «только я» и «можно передать».',
+  'Бизнес': 'Без цифр сложно понять, что приносит деньги, — выпишите выручку и расходы по направлениям.',
+  'Клиент': '«Подходит всем» значит «не цепляет никого» — опишите 1–3 реальных сегмента.',
+  'Позиционирование': 'Если отличие не считывается за 30 секунд, клиент выбирает по цене.',
+  'Продукт': 'Без лестницы продуктов тот, кто не готов купить основное, просто уходит.',
+  'Поток клиентов': 'Блок весит 20%: без регулярного потока остальная система работает вхолостую.',
+  'Путь клиента': 'Блок весит 20%: здесь чаще всего теряются люди между знакомством и покупкой.',
+  'Система + AI': 'Повторяющаяся ручная работа съедает время, которое можно отдать развитию.'
+};
+
+const PROGRAM = [
+  { t: 'Диагностика', d: 'День 1',
+    goal: 'Зафиксировать точку А: где система работает, а где ломается.',
+    todo: 'Ответить на 40 вопросов по шкале 0–3, опираясь на последние 3 месяца. Получить Индекс системы и колесо из 8 секторов.',
+    res: 'Индекс системы «до», колесо, три самых слабых блока.',
+    done: 'Отвечены все 40 вопросов, названы 3 блока с самым низким процентом.' },
+  { t: 'Я', d: 'Дни 2–3',
+    goal: 'Понять, какую роль вы хотите занимать в бизнесе и в чём ваша сила.',
+    todo: 'Пройти интервью с AI-ассистентом по распаковке, сформулировать цель на 12 месяцев, разделить задачи на «только я» и «можно передать».',
+    res: 'Карта предпринимателя.',
+    done: 'Цель на 12 месяцев записана одной фразой, список задач разделён на две колонки.' },
+  { t: 'Бизнес', d: 'Дни 4–6',
+    goal: 'Увидеть, что реально приносит деньги.',
+    todo: 'Выписать направления, выручку, расходы и прибыль за 3 месяца, отметить действия, после которых были продажи, выбрать точки роста.',
+    res: 'Карта бизнеса и 3 точки роста.',
+    done: 'У каждой точки роста есть числовой ориентир на ближайшие 3 месяца.' },
+  { t: 'Клиент', d: 'Дни 7–9',
+    goal: 'Описать реального клиента вместо «подходит всем».',
+    todo: 'Выбрать 1–3 сегмента и по вашим реальным обращениям записать проблему, желание, возражения и то, где человек ищет и принимает решение.',
+    res: 'Карта целевой аудитории.',
+    done: 'В описании нет фразы «подходит всем», названы минимум 3 возражения.' },
+  { t: 'Позиционирование', d: 'Дни 10–12',
+    goal: 'Чтобы за 30 секунд было понятно, кто вы и какой результат даёте.',
+    todo: 'Собрать формулу позиционирования и отличия от других, написать оффер на языке результата клиента, проверить его на 3–5 людях из аудитории.',
+    res: 'Формула позиционирования и оффер.',
+    done: 'Оффер описывает результат клиента, а не список услуг; 3 человека пересказали его верно.' },
+  { t: 'Продукт', d: 'Дни 13–15',
+    goal: 'Выбрать один главный продукт и выстроить вокруг него понятную лестницу.',
+    todo: 'Разложить продукты в матрицу: бесплатный вход, недорогое предложение, основной продукт, продолжение. Выбрать один основной на период.',
+    res: 'Продуктовая матрица.',
+    done: 'Результат главного продукта назван одним предложением; понятно, что предложить тому, кто не готов купить основной.' },
+  { t: 'Поток клиентов', d: 'Дни 16–20',
+    goal: 'Получить 1–2 канала, из которых клиенты приходят регулярно.',
+    todo: 'Оценить текущие каналы (Авито, Reels, VK, реклама, партнёрства) по затратам и обращениям, выбрать 1–2, подготовить контент или объявления, назначить показатели.',
+    res: 'Стратегия трафика с показателями.',
+    done: 'Для каждого канала записано действие на неделю и показатель, который вы действительно считаете.' },
+  { t: 'Путь клиента', d: 'Дни 21–25',
+    goal: 'Чтобы человек не терялся после первого знакомства с вами.',
+    todo: 'Прорисовать маршрут «вход → лендинг или профиль → бот → прогрев → заявка → продажа», задать следующий шаг на каждом этапе, найти место самых больших потерь.',
+    res: 'Рабочая карта воронки.',
+    done: 'На каждом этапе есть следующий шаг и сообщение; отмечен этап с наибольшей потерей.' },
+  { t: 'Система + AI', d: 'Дни 26–28',
+    goal: 'Убрать повторяющуюся ручную работу.',
+    todo: 'Выписать повторяющиеся процессы и решить по каждому: оставить себе, делегировать, автоматизировать или передать AI. Настроить 1–2 AI-помощника на реальных задачах.',
+    res: 'Карта автоматизации и AI-помощники.',
+    done: 'Хотя бы один процесс уже передан и работает.' },
+  { t: 'Итог', d: 'Дни 29–30',
+    goal: 'Измерить изменения и закрепить результат.',
+    todo: 'Повторно пройти диагностику, сравнить блоки «до» и «после», выбрать 3 главных результата на 90 дней и показатели для них.',
+    res: 'Индекс системы «после» и план на 90 дней.',
+    done: 'Названы 3 приоритета, у каждого есть показатель и срок.' }
+];
+
+/* ===== УТИЛИТЫ ===== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* Колесо (радар): values — проценты 0..100 по 8 блокам */
+function drawWheel(svg, values, opts = {}) {
+  const cx = 200, cy = 200, R = 150, n = BLOCKS.length;
+  const gridColor = opts.dark ? 'rgba(255,255,255,.14)' : '#E4DACC';
+  const textColor = opts.dark ? '#D6DCDA' : '#1F2A2E';
+  const pt = (i, r) => {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / n;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  };
+  let s = '';
+  [0.25, 0.5, 0.75, 1].forEach(k => {
+    s += `<polygon points="${BLOCKS.map((_, i) => pt(i, R * k).join(',')).join(' ')}" fill="none" stroke="${gridColor}" stroke-width="1"/>`;
+  });
+  BLOCKS.forEach((b, i) => {
+    const [x, y] = pt(i, R);
+    s += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${gridColor}"/>`;
+    const [lx, ly] = pt(i, R + 26);
+    const anchor = Math.abs(lx - cx) < 5 ? 'middle' : (lx > cx ? 'start' : 'end');
+    const heavy = b.w === 20;
+    s += `<text x="${lx}" y="${ly}" text-anchor="${anchor}" dominant-baseline="middle" font-family="Manrope,sans-serif" font-size="14" font-weight="${heavy ? 800 : 600}" fill="${heavy ? '#C4553A' : textColor}">${esc(b.name)}</text>`;
+    s += `<text x="${lx}" y="${ly + 17}" text-anchor="${anchor}" dominant-baseline="middle" font-family="Manrope,sans-serif" font-size="12" fill="${textColor}" opacity=".65">${Math.round(values[i])}%</text>`;
+  });
+  const poly = values.map((v, i) => pt(i, R * Math.max(v, 3) / 100).join(',')).join(' ');
+  s += `<polygon points="${poly}" fill="rgba(196,85,58,.22)" stroke="#C4553A" stroke-width="2.5" stroke-linejoin="round"/>`;
+  values.forEach((v, i) => {
+    const [x, y] = pt(i, R * Math.max(v, 3) / 100);
+    s += `<circle cx="${x}" cy="${y}" r="5" fill="#C4553A" stroke="${opts.dark ? '#28363A' : '#fff'}" stroke-width="2"/>`;
+  });
+  svg.innerHTML = s;
+}
+
+/* ===== БЛОКИ МЕТОДА ===== */
+$('blocksList').innerHTML = BLOCKS.map(b => `
+  <div class="block reveal ${b.w === 20 ? 'heavy' : ''}">
+    <h3>${esc(b.name)}<span class="weight">вес ${b.w}%</span></h3>
+    <p>${esc(b.desc)}</p>
+  </div>`).join('');
+
+drawWheel($('exampleWheel'), [85, 60, 55, 50, 80, 25, 20, 40]);
+
+/* ===== ПРОГРАММА ===== */
+$('programList').innerHTML = PROGRAM.map((p, i) => `
+  <details ${i === 0 ? 'open' : ''}>
+    <summary><span class="num">${i + 1}</span>${esc(p.t)}<span class="days">${esc(p.d)}</span></summary>
+    <div class="det-body">
+      <div><h4>Цель</h4><p>${esc(p.goal)}</p></div>
+      <div><h4>Результат</h4><p>${esc(p.res)}</p></div>
+      <div style="grid-column:1/-1"><h4>Что вы делаете</h4><p>${esc(p.todo)}</p></div>
+      <div class="done"><h4>Готово, когда</h4><p>${esc(p.done)}</p></div>
+    </div>
+  </details>`).join('');
+
+/* ===== ТЕСТ ===== */
+const answers = new Array(QUESTIONS.length).fill(null);
+let cur = 0;
+let autoNext = null;
+
+function renderQuestion() {
+  $('qCounter').textContent = `Вопрос ${cur + 1} из ${QUESTIONS.length}`;
+  $('qBlock').textContent = `Блок: ${BLOCKS[cur].name}`;
+  $('qText').textContent = QUESTIONS[cur];
+  $('progressBar').style.width = (cur / QUESTIONS.length * 100) + '%';
+  $('qOptions').innerHTML = SCALE.map(o => `
+    <button type="button" role="radio" aria-checked="${answers[cur] === o.v}" class="opt ${answers[cur] === o.v ? 'sel' : ''}" data-v="${o.v}">
+      <span class="n">${o.v}</span><span>${esc(o.t)}</span>
+    </button>`).join('');
+  $('prevBtn').style.visibility = cur === 0 ? 'hidden' : 'visible';
+  $('nextBtn').disabled = answers[cur] === null;
+  $('nextBtn').textContent = cur === QUESTIONS.length - 1 ? 'Узнать результат' : 'Далее →';
+}
+
+$('qOptions').addEventListener('click', e => {
+  const btn = e.target.closest('.opt');
+  if (!btn) return;
+  answers[cur] = Number(btn.dataset.v);
+  renderQuestion();
+  // автопереход к следующему вопросу (без двойного срабатывания)
+  clearTimeout(autoNext);
+  const from = cur;
+  autoNext = setTimeout(() => { if (cur === from && cur < QUESTIONS.length - 1) { cur++; renderQuestion(); } }, 260);
+});
+$('prevBtn').addEventListener('click', () => { if (cur > 0) { cur--; renderQuestion(); } });
+$('nextBtn').addEventListener('click', () => {
+  if (answers[cur] === null) return;
+  if (cur < QUESTIONS.length - 1) { cur++; renderQuestion(); }
+  else showResult();
+});
+$('restartBtn').addEventListener('click', () => {
+  answers.fill(null); cur = 0;
+  $('result').classList.remove('show');
+  $('quizBody').style.display = '';
+  renderQuestion();
+  $('quiz').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+function showResult() {
+  const pct = answers.map(a => a / 3 * 100);
+  const index = Math.round(BLOCKS.reduce((sum, b, i) => sum + b.w * answers[i] / 3, 0));
+
+  let level, color, text;
+  if (index < 40) {
+    level = 'Набор отдельных действий'; color = '#C4553A';
+    text = 'Усилий много, но они пока не складываются в систему. Хорошая новость: обычно достаточно связать 2–3 ключевых блока, чтобы продажи стали предсказуемее.';
+  } else if (index < 70) {
+    level = 'Система в процессе сборки'; color = '#D99A2B';
+    text = 'Часть блоков уже работает, но есть разрывы, в которых теряются клиенты и деньги. Важно не добавлять новые действия, а закрыть слабые места.';
+  } else {
+    level = 'Работающая система'; color = '#2F6F6A';
+    text = 'Основа выстроена. Следующий шаг — усилить слабые блоки, автоматизировать рутину и масштабировать то, что уже приносит результат.';
+  }
+
+  $('quizBody').style.display = 'none';
+  $('result').classList.add('show');
+  drawWheel($('resultWheel'), pct, { dark: true });
+  $('levelTag').textContent = level;
+  $('levelTag').style.background = color;
+  $('levelTag').style.color = '#fff';
+  $('levelText').textContent = text;
+
+  // слабые блоки: по проценту, при равенстве — тяжёлые блоки первыми
+  const weak = BLOCKS.map((b, i) => ({ b, p: pct[i] }))
+    .sort((x, y) => x.p - y.p || y.b.w - x.b.w)
+    .slice(0, 3);
+  $('weakList').innerHTML = weak.map(w => `
+    <li><span><b>${esc(w.b.name)}</b> — ${esc(ADVICE[w.b.name])}</span><span>${Math.round(w.p)}%</span></li>`).join('');
+
+  // анимация числа
+  const el = $('scoreNum');
+  const start = performance.now();
+  (function tick(t) {
+    const k = Math.min((t - start) / 900, 1);
+    el.textContent = Math.round(index * (1 - Math.pow(1 - k, 3)));
+    if (k < 1) requestAnimationFrame(tick);
+  })(start);
+
+  try { localStorage.setItem('sistema_index', JSON.stringify({ index, answers, date: Date.now() })); } catch (e) {}
+  $('quiz').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+renderQuestion();
+
+/* ===== Ссылка Telegram ===== */
+$('tgLink').href = 'https://t.me/' + TELEGRAM_USERNAME;
+
+/* ===== Появление при прокрутке ===== */
+if ('IntersectionObserver' in window) {
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+} else {
+  document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+}
+</script>
+</body>
+</html>
